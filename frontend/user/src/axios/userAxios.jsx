@@ -1,102 +1,17 @@
-// import axios from 'axios';
-// import { getAccessToken } from '../redux/getStore';
-// import store from '../redux/store';
-// import { updateAccessToken, logoutUser } from '../redux/userSlice';
-
-// const axiosInstance = axios.create({
-//   baseURL: 'http://localhost:3000/user',
-//   withCredentials: true, // For sending cookies with requests
-// });
-
-// // Request interceptor to attach access token
-// axiosInstance.interceptors.request.use(
-//   (config)=>{
-//     const token=store.getState().token.token
-//     console.log(token)
-//     if(token)
-//     {
-//       config.headers['Authorization']=`Bearer ${token}`
-//     }
-//     console.log('token interceptor done',config)
-//     return config;
-    
-//   },
-//   (error)=>{
-//     return Promise.reject(error)
-//   }
-// )
-
-
-// // Response interceptor to refresh access token on 401 errors
-// axiosInstance.interceptors.response.use(
-//   (response) => response,
-//   async (error) => {
-//     if (error.response.status === 401 && !error.config._retry) {
-//       error.config._retry = true;
-//       try {
-//         const { data } = await axios.post('/refresh-token');
-//         store.dispatch(updateAccessToken(data.accessToken));
-//         error.config.headers.Authorization = `Bearer ${data.accessToken}`;
-//         return axiosInstance(error.config);
-//       } catch (refreshError) {
-//         store.dispatch(logoutUser());
-//         return Promise.reject(refreshError);
-//       }
-//     }
-//     return Promise.reject(error);
-//   }
-// );
-
-
-// // axiosInstance.interceptors.response.use(
-// //   response=>response,
-// //   async(error)=>{
-// //     const originalRequest=error.config;
-
-// //     if(error.response.status==401 && !originalRequest._retry)
-// //     {        
-// //       originalRequest._retry=true;
-
-// //       try{
-// //         const refreshResponse=await instance.post('/refreshToken',{},{withCredentials:true})
-// //         const newAccessToken=refreshResponse.data.newAccessToken
-// //         store.dispatch(updateAccessToken(newAccessToken))
-// //         originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-// //         return instance(originalRequest);
-// //       }catch(refreshError){
-// //         console.log('refresh token failed',refreshError)
-// //         store.dispatch(logoutUser());
-// //         return Promise.reject(refreshError);
-// //       }
-// //     }
-// //     console.log("response error " + error)
-// //     return Promise.reject(error);
-// //   }
-// // )
-
-// export default axiosInstance;
-
-
-
-
-
-
 import axios from 'axios';
-import store from '../redux/store';
-import { updateAccessToken, logoutUser } from '../redux/userSlice';
+import  toast  from 'react-hot-toast'; // Assuming you're using react-toastify
 
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:3000/user',
-  withCredentials: true, // For sending cookies with requests
+  baseURL: 'http://localhost:4000/user',
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  }
 });
 
-// Request interceptor to attach access token
+// Request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = store.getState().user.token; // Adjusted path to match store structure
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
     return config;
   },
   (error) => {
@@ -104,23 +19,90 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Response interceptor to refresh access token on 401 errors
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Response interceptor
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response && error.response.status === 401 && !error.config._retry) {
-      error.config._retry = true;
-      try {
-        const { data } = await axiosInstance.post('/refresh-token');
-        store.dispatch(updateAccessToken(data.accessToken));
-        error.config.headers.Authorization = `Bearer ${data.accessToken}`;
-        return axiosInstance(error.config);
-      } catch (refreshError) {
-        store.dispatch(logoutUser());
-        return Promise.reject(refreshError);
+    const originalRequest = error.config;
+
+    // Handle 403 Forbidden error
+    if (error.response?.status === 403) {
+      toast.error('Your account has been te restricted. Please contact support.', {
+        position: 'top-right',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      // Only redirect if not already on login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
       }
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    // If the error is not 401 or the request was for refresh token, reject immediately
+    if (error.response?.status !== 401 || originalRequest.url === '/refresh-token') {
+      return Promise.reject(error);
+    }
+
+    // If the request has already been retried, reject it
+    if (originalRequest._retry) {
+      // If we're on the login page, don't try to refresh
+      if (window.location.pathname === '/login') {
+        return Promise.reject(error);
+      }
+      // Redirect to login for other pages
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      })
+        .then(() => {
+          return axiosInstance(originalRequest);
+        })
+        .catch(err => {
+          return Promise.reject(err);
+        });
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      const response = await axiosInstance.get('/refresh-token');
+      isRefreshing = false;
+      processQueue(null, response.data.token);
+      return axiosInstance(originalRequest);
+    } catch (refreshError) {
+      isRefreshing = false;
+      processQueue(refreshError, null);
+      
+      // Only redirect to login if we're not already on the login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+      return Promise.reject(refreshError);
+    }
   }
 );
 

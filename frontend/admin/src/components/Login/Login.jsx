@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
+import { Eye, EyeOff } from "lucide-react";
 import axiosInstance from '../../axios/adminAxios'; // Axios instance for API requests
 import { addAdmin } from '../../redux/adminSlice';
 
@@ -16,7 +17,7 @@ const Login = () => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -81,15 +82,22 @@ const Login = () => {
           </div>
 
           {/* Password Field */}
-          <div>
+          <div className="relative">
             <Input
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="password"
               value={formData.password}
               onChange={handleChange}
               placeholder="Password"
               className={`w-full p-3 bg-gray-800 text-white border rounded-md focus:ring-2 focus:ring-[#00cc00] ${errors.password ? 'border-red-500' : 'border-gray-700'}`}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white focus:outline-none"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
             {errors.password && <div className="text-red-500 text-sm mt-1">{errors.password}</div>}
           </div>
 
@@ -103,11 +111,6 @@ const Login = () => {
           </Button>
         </form>
         <br />
-
-        
-
-
-
 
 
       </div>

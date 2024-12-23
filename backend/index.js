@@ -10,7 +10,7 @@ const userRoutes = require('./routes/userRoutes');
 const cookieParser = require('cookie-parser');
 const adminRoutes = require('./routes/adminRoutes');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000 || 3000;
 
 
 const corsOptions = {

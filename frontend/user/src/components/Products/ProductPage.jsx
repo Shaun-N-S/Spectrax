@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import axiosInstance from "../../../../admin/src/axios/adminAxios"; 
+import axiosInstance from "../../axios/userAxios";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-import { FaShoppingCart } from "react-icons/fa";
+import { FaShoppingCart, FaStar } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 const ProductPage = () => {
@@ -13,16 +13,16 @@ const ProductPage = () => {
 
   useEffect(() => {
     axiosInstance
-      .get("/showproducts") 
+      .get("/showproductsisActive")
       .then((response) => {
-        setProducts(response.data.products); 
+        setProducts(response.data.products);
         setLoading(false);
       })
       .catch((err) => {
         setError("Error fetching products");
         setLoading(false);
       });
-  }, []); 
+  }, []);
 
   const navigate = useNavigate();
 
@@ -31,64 +31,78 @@ const ProductPage = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-black">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-green-500"></div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div>{error}</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-red-500 text-xl font-bold">
+        {error}
+      </div>
+    );
   }
 
   return (
-    <div className="bg-black min-h-screen text-white py-10">
-      <div className="container mx-auto px-4">
-        <h1 className="text-3xl font-bold text-center text-green-400 mb-8">
+    <div className="bg-black min-h-screen text-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-center text-green-400 mb-12 tracking-tight">
           Our Products
         </h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {products.map((product) => (
             <Card
               key={product._id}
-              className="bg-black border border-green-500 shadow-lg rounded-lg"
+              className="bg-gray-900 border-2 border-green-500 shadow-xl rounded-lg overflow-hidden transition-all duration-300 hover:shadow-green-500/50 hover:-translate-y-1"
             >
-              <div className="flex flex-col items-center p-4">
+              <div className="relative">
                 <img
-                  src={product.productImage[0]} 
+                  src={product.productImage[0]}
                   alt={product.title}
-                  className="w-full h-48 object-cover rounded-lg mb-4"
+                  className="w-full h-64 object-cover"
                 />
-                <h2 className="text-xl font-semibold text-green-400 mb-2">
+                <Badge
+                  variant="outline"
+                  className="absolute top-4 right-4 bg-black/70 text-green-400 border-green-400"
+                >
+                  {product.specifications?.series}
+                </Badge>
+              </div>
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-green-400 mb-2 truncate">
                   {product.title}
                 </h2>
-                <p className="text-gray-400 text-center mb-4">
+                <p className="text-gray-400 mb-4 h-12 overflow-hidden">
                   {product.description}
                 </p>
-                <div className="flex justify-between items-center w-full mb-4">
-                  <Badge variant="outline" className="text-green-400">
-                    {product.specifications?.series} 
-                  </Badge>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-green-400 text-2xl font-bold">
+                    ${product.price}
+                  </span>
                   <div className="flex items-center text-yellow-400">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <span key={index}>
-                        {index < 4 ? "★" : "☆"} 
-                      </span>
+                    {[...Array(5)].map((_, index) => (
+                      <FaStar
+                        key={index}
+                        className={index < 4 ? "text-yellow-400" : "text-gray-600"}
+                      />
                     ))}
                   </div>
                 </div>
-                <div className="flex justify-between items-center w-full">
-                  <span className="text-green-400 text-xl font-semibold">
-                    ${product.price}
-                  </span>
+                <div className="grid grid-cols-2 gap-4">
                   <Button
-                    variant="primary"
-                    className="flex items-center bg-green-500 hover:bg-green-600"
+                    variant="outline"
+                    className="w-full border-green-500 text-green-400 hover:bg-green-500 hover:text-black transition-colors duration-300"
                   >
                     <FaShoppingCart className="mr-2" />
                     Add to Cart
                   </Button>
                   <Button
-                    variant="primary"
-                    className="flex items-center bg-green-500 hover:bg-green-600"
-                    onClick={() => handleShop(product._id)} 
+                    variant="default"
+                    className="w-full bg-green-500 text-black hover:bg-green-600 transition-colors duration-300"
+                    onClick={() => handleShop(product._id)}
                   >
                     View Details
                   </Button>
@@ -103,3 +117,4 @@ const ProductPage = () => {
 };
 
 export default ProductPage;
+

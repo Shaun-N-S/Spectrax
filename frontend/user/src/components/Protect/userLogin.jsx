@@ -1,16 +1,30 @@
-import { Navigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import axiosInstance from '../../axios/userAxios';
 
-function ProtectHome({children}){
+function ProtectHome({ children }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
 
-    // const user = useSelector((state) => state.user.users);
-    const id =localStorage.getItem('accessToken')
-    console.log(id)
-    if (!id) {
-    return <Navigate to="/login" />;
-    }
+  useEffect(() => {
+    const verifyToken = async () => {
+      try {
+        // Verify the token (cookies are automatically sent)
+        await axiosInstance.post('/verifytoken',{withCredentials: true}); 
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error('Token verification failed:', error.message);
+        setIsAuthenticated(false);
+      }
+    };
 
-    return children
+    verifyToken();
+  }, []);
+
+  if (isAuthenticated === null) {
+    return <div>Loading...</div>; // Show a loading state while verifying
+  }
+
+  return isAuthenticated ? children : <Navigate to="/login" />;
 }
 
 export default ProtectHome;

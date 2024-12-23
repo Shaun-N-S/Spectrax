@@ -148,6 +148,7 @@ const verifyOtp = async (req, res) => {
 
 
 const resendOtp = async (req, res) => {
+  console.log("resend otp");
   try {
     const { email } = req.body;
 
@@ -183,9 +184,6 @@ const resendOtp = async (req, res) => {
 
 
 
-
-
-
 const   googleAuth = async (req, res) => {
     try {
       const { token } = req.body;
@@ -213,15 +211,28 @@ const   googleAuth = async (req, res) => {
         await user.save();
       }
   
-      // Generate JWT token
-      const jwtToken = jwt.sign({ id: user._id }, process.env.JWT_SECERT, { expiresIn: '30d' });
-  
+      // Generate tokens
+   const accessToken = generateAccessToken(user._id);
+   const refreshToken = generateRefreshToken(user._id);
+
+   // Store access token and refresh token in HTTP-only cookies
+   res.cookie('accessToken', accessToken, {
+     httpOnly: true,
+     secure: process.env.NODE_ENV === 'production',
+     sameSite: 'Lax',
+   });
+
+   res.cookie('refreshToken', refreshToken, {
+     httpOnly: true,
+     secure: process.env.NODE_ENV === 'production',
+     sameSite: 'Lax',
+   });
+
       res.status(200).json({
         message: 'Google login successful',
         id: user._id,
         name: user.firstName,
         email: user.email,
-        token: jwtToken,
       });
     } catch (error) {
       console.error('Google Auth Error:', error);
@@ -231,69 +242,23 @@ const   googleAuth = async (req, res) => {
 
 
 
-
-// const login = async (req, res) => {
-//     try {
-//       const { email, password } = req.body;
-//       console.log(password)
-//       const user = await User.findOne({ email });
-  
-//       // Check if the user exists
-//       if (!user) {
-//         return res.status(401).json({ message: "Invalid email or password" });
-//       }
-  
-//       // Check if the user is an admin
-//       if (user.isAdmin === true) {
-//         return res.status(403).json({ message: "Admin accounts are not allowed to login here" });
-//       }
-//       console.log(password)
-//       console.log('JWT Secret:', process.env.JWT_SECERT);
-
-
-      
-//       // Compare the provided password with the stored hash
-//       const isPasswordValid = await bcrypt.compare(password, user.password);
-//       console.log('compared password',isPasswordValid)
-//       if (!isPasswordValid) {
-//         return res.status(401).json({ message: "Invalid email or password" });
-//       }
-  
-//       // Generate JWT token
-//       const token = jwt.sign({ id: user._id }, process.env.JWT_SECERT, { expiresIn: "30d" });
-  
-//       // Set the token as a cookie
-//       res.cookie("token", token, {
-//         httpOnly: true,
-//         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-//         secure: process.env.NODE_ENV === "production", // true in production
-//         sameSite: "lax",
-//       });
-  
-//       // Respond with success message and user details
-//       return res.status(200).json({
-//         message: "Login successful",
-//         id: user._id,
-//         name: user.name,
-//         email: user.email,
-//         phone: user.phone,
-//       });
-//     } catch (error) {
-//       console.error("Login error:", error);
-//       return res.status(500).json({ message: "An internal server error occurred" });
-//     }
-//   };
-
-
 const login = async (req, res) => {
-  console.log('ajksdnflads')
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
+    console.log(user)
+
+    if (user.status === 'blocked'){
+      return res.status(400).json({message:'Your account is temporarily restricted. Please contact support.'})
+    }
+
 
     if (!user) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
+
+    
+    
 
     // Check if the provided password matches the stored hash
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -306,20 +271,20 @@ const login = async (req, res) => {
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    // Store refresh token in an HTTP-only cookie
+    // Store access token and refresh token in HTTP-only cookies
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Lax',
+    });
+
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Lax',
     });
-    return res.status(200).json({message:"user logged in",accessToken,user})
-    // res.status(200).json({
-    //   message: 'Login successful',
-    //   accessToken,
-    //   id: user._id,
-    //   name: user.firstName,
-    //   email: user.email,
-    // });
+
+    return res.status(200).json({ message: 'User logged in', user });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'An internal server error occurred' });
@@ -329,14 +294,28 @@ const login = async (req, res) => {
   
 
 const logoutUser = (req, res) => {
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
-  });
+  console.log('reaching here');
+  try {
+    res.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Lax',
+    });
 
-  res.status(200).json({ message: 'Logged out successfully' });
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Lax',
+    });
+
+    return res.status(200).json({ message: 'Logged out successfully', });
+  } catch (error) {
+    console.error('Logout error:', error);
+    return res.status(500).json({ message: 'Internal server error during logout' });
+  }
 };
+
+
 
 
 
@@ -345,7 +324,9 @@ const logoutUser = (req, res) => {
 
 const refreshAccessToken = (req, res) => {
   const refreshToken = req.cookies.refreshToken;
-
+  console.log('Cookies received:', req.cookies);
+  console.log('Refresh token:', refreshToken);
+  
   if (!refreshToken) {
     return res.status(401).json({ message: 'No refresh token provided' });
   }
@@ -353,13 +334,26 @@ const refreshAccessToken = (req, res) => {
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
     const newAccessToken = generateAccessToken(decoded.id);
+    
+    // Set the new access token as an HTTP-only cookie
+    res.cookie('accessToken', newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
 
-    res.status(200).json({ accessToken: newAccessToken });
+    res.status(200).json({ message: 'Token refreshed successfully' });
   } catch (error) {
     console.error('Refresh token error:', error);
+    // Clear the invalid refresh token
+    res.clearCookie('refreshToken');
     res.status(403).json({ message: 'Invalid or expired refresh token' });
   }
 };
+
+
+
   
 
 
@@ -405,5 +399,6 @@ module.exports = {
     logoutUser,
     googleAuth,
     refreshAccessToken,
-    updateUserStatus
+    updateUserStatus,
+    
 }

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import '../signup/SignUp.css';
 import axiosInstance from '@/axios/userAxios';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
+import { User } from 'lucide-react';
 
 const OtpVerification = () => {
   const [otp, setOtp] = useState('');
@@ -10,7 +13,15 @@ const OtpVerification = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const email = location.state?.email;
+  
+  
+  const userData = JSON.parse(localStorage.getItem('user'));
+const email = userData?.email || 'No email found';
+
+console.log('User Email:', email);
+
+
+  
 
   const handleChange = (e) => setOtp(e.target.value);
 
@@ -20,9 +31,12 @@ const OtpVerification = () => {
     setLoading(true);
     try {
       const response = await axiosInstance.post('/verify-otp', { otp }, { withCredentials: true });
-      alert('OTP verified successfully!');
+      // alert('OTP verified successfully!');
+      toast.success('OTP verified successfully!');
       localStorage.setItem('accessToken',response.data.token)
-      navigate('/home');
+      setTimeout(() => {
+        navigate('/home');
+      }, 1000);
     } catch (err) {
       console.log(err)
       setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
@@ -44,7 +58,8 @@ const OtpVerification = () => {
       setTimer(60);
       setError('');
     } catch (err) {
-      setError('Failed to resend OTP. Please try again later.');
+      toast.error('Failed to resend OTP. Please try again later.');
+      // setError('Failed to resend OTP. Please try again later.');
     }
   };
 

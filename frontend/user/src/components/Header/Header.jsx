@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Heart, Search, ShoppingCart, User } from "lucide-react";
+import { Heart, Search, ShoppingCart, User } from 'lucide-react';
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
+import axiosInstance from "@/axios/userAxios";
+import { useSelector } from "react-redux";
+import toast from "react-hot-toast";
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -10,6 +13,10 @@ export default function Header() {
   const [user, setUser] = useState(null); // Simulate user state
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+   const userDetails = useSelector((state) => state.user);
+   console.log("user Details  : ",userDetails)
+
+
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -17,25 +24,37 @@ export default function Header() {
   };
 
   const handleUserAction = (path) => {
-    setIsUserDropdownOpen(false);
+    
     navigate(path);
   };
 
   const handleLogout = () => {
-    // Simulate logout logic
-    localStorage.removeItem('accesstoken');
-    navigate("/");
-    setUser(null);
-    setIsUserDropdownOpen(false);
-    console.log("User logged out");
-    
+    console.log('Logging out user...');
+    axiosInstance.post('/logout')
+      .then(() => {
+        // Clear frontend user state
+        console.log('User logged out successfully');
+        setUser(null);
+        toast.success('Logged out successfully');
+  
+        
+  
+        // Navigate to login page
+        navigate('/login');
+        console.log('Navigated to login page');
+      })
+      .catch((error) => {
+        console.error('Logout error:', error.response?.data || error.message);
+      });
   };
+
+
+
   
   const toggleDropdown = () => {
     setIsUserDropdownOpen((prev) => !prev);
   };
 
-  // Close dropdown if clicked outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -47,16 +66,17 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+
+
+
   return (
     <header className="bg-black text-white relative z-10">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
           <Link to="/" className="text-2xl font-bold tracking-tighter">
             SPECTRAX
           </Link>
 
-          {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-sm font-medium hover:text-gray-300 transition-colors">
               HOME
@@ -72,17 +92,21 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Search and Icons */}
           <div className="flex items-center space-x-4">
             <form onSubmit={handleSearch} className="relative hidden sm:block">
               <Input
                 type="search"
                 placeholder="Search..."
-                className="w-[200px] lg:w-[300px] bg-white text-black pr-8"
+                className="w-[200px] lg:w-[300px] bg-black text-white pr-8 border-white border-opacity-20"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <Button type="submit" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 text-black hover:text-gray-600">
+              <Button 
+                type="submit" 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-0 top-0 h-full px-3 text-white hover:text-gray-300"
+              >
                 <Search className="h-4 w-4" />
                 <span className="sr-only">Search</span>
               </Button>
@@ -98,7 +122,6 @@ export default function Header() {
                 <span className="sr-only">Cart</span>
               </Button>
 
-              {/* User Dropdown */}
               <div className="relative" ref={dropdownRef}>
                 <Button variant="ghost" size="icon" className="text-white" onClick={toggleDropdown}>
                   <User className="h-5 w-5" />
@@ -107,14 +130,14 @@ export default function Header() {
                 {isUserDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-40 bg-white text-black rounded shadow-lg">
                     <ul>
-                      {user ? (
+                      { userDetails !== null ? (
                         <>
                           <li>
                             <Link to="/account" className="block px-4 py-2 hover:bg-gray-200" onClick={() => handleUserAction("/account")}>
                               Account
                             </Link>
                           </li>
-                          <li>
+                          <li >
                             <button className="block w-full text-left px-4 py-2 hover:bg-gray-200" onClick={handleLogout}>
                               Logout
                             </button>
@@ -122,7 +145,7 @@ export default function Header() {
                         </>
                       ) : (
                         <li>
-                          <button className="block w-full text-left px-4 py-2 hover:bg-gray-200" onClick={() => handleUserAction("/login")}>
+                          <button className="block w-full text-left px-4 py-2 hover:bg-gray-200" onClick={handleLogout}>
                             Login
                           </button>
                         </li>
@@ -138,3 +161,4 @@ export default function Header() {
     </header>
   );
 }
+

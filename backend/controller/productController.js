@@ -49,12 +49,23 @@ const addProduct = async (req, res) => {
 // Controller to show all products
 const showProducts = async (req, res) => {
     try {
-      const products = await Product.find({status:"active"});
+      const products = await Product.find();
       res.status(200).json({ message: 'Products retrieved successfully', products });
     } catch (error) {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+
+
+
+  const showProductsIsActive = async (req,res)=>{
+    try {
+      const products = await Product.find({status:"active"});
+      res.status(200).json({ message: 'Products retrieved successfully', products });
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  }
 
 
 
@@ -168,7 +179,8 @@ module.exports = {
     showProductById,
     editProduct,
     productsByCategory,
-    toggleProductStatus
+    toggleProductStatus,
+    showProductsIsActive
 
 
 }

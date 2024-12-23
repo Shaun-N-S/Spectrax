@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import toast from 'react-hot-toast';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -30,21 +31,42 @@ const SignUp = () => {
   };
 
   const validateForm = () => {
-    let newErrors = {};
+  let newErrors = {};
 
-    if (!formData.firstName) newErrors.firstName = 'First name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last name is required';
-    if (!formData.email) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
-    if (!formData.phone) newErrors.phone = 'Phone number is required';
-    else if (!/^\d{10}$/.test(formData.phone)) newErrors.phone = 'Phone number must be 10 digits';
-    if (!formData.password) newErrors.password = 'Password is required';
-    else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
-    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+  if (!formData.firstName.trim()) {
+    newErrors.firstName = 'First name cannot be empty or only spaces';
+  }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  if (!formData.lastName.trim()) {
+    newErrors.lastName = 'Last name cannot be empty or only spaces';
+  }
+
+  if (!formData.email) {
+    newErrors.email = 'Email is required';
+  } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    newErrors.email = 'Email is invalid';
+  }
+
+  if (!formData.phone) {
+    newErrors.phone = 'Phone number is required';
+  } else if (!/^\d{10}$/.test(formData.phone)) {
+    newErrors.phone = 'Phone number must be 10 digits';
+  }
+
+  if (!formData.password) {
+    newErrors.password = 'Password is required';
+  } else if (formData.password.length < 6) {
+    newErrors.password = 'Password must be at least 6 characters';
+  }
+
+  if (formData.password !== formData.confirmPassword) {
+    newErrors.confirmPassword = 'Passwords do not match';
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,11 +76,11 @@ const SignUp = () => {
       try {
         const response = await axiosInstance.post('/sign', formData);
         console.log(formData)
-        dispatch(addUser(response.data.user));
-        localStorage.setItem('user',response.data.user)
-        
+        // dispatch(addUser(response.data.user));
+        localStorage.setItem('user', JSON.stringify(formData));
         navigate('/otp');
       } catch (error) {
+        toast.error('User with this email already exists');
         console.error('Signup error:', error.response?.data || error.message);
       } finally {
         setLoading(false);

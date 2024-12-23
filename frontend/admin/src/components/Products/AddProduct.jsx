@@ -347,13 +347,13 @@ const AddProduct = () => {
       specifications: specErrors
     };
 
-    setErrors(newErrors);
+    // setErrors(newErrors);
 
-    // Check if there are any errors
-    if (Object.values(newErrors).some(error => error !== '') || Object.values(newErrors.specifications).some(error => error !== '')) {
-      toast.error('Please fix all errors before submitting');
-      return;
-    }
+    // // Check if there are any errors
+    // if (Object.values(newErrors).some(error => error !== '') || Object.values(newErrors.specifications).some(error => error !== '')) {
+    //   toast.error('Please fix all errors before submitting');
+    //   return;
+    // }
 
     try {
       // Validate required fields

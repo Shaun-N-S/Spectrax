@@ -12,6 +12,8 @@ import ProductDetails from './components/Products/ProductDetails'
 import ProtectedComponent from './components/Protect/ProtectedComponent'
 import Footer from './components/Footer/Footer'
 import Breadcrumbs from './components/BreadCrump/BreadCrump'
+import { Toaster } from 'react-hot-toast';
+
 
 const App = () => {
   return (
@@ -19,7 +21,7 @@ const App = () => {
     <BrowserRouter>
     <Header/>
     <Breadcrumbs/>
-    
+    <Toaster />
     <Routes>
     <Route path='/' element={<ProtectHome><Home/></ProtectHome>}/>
       <Route path="/login" element={<ProtectEdit><Login/></ProtectEdit>} />

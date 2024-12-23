@@ -61,14 +61,14 @@ const HomePage = () => {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
             className="text-5xl md:text-7xl mb-8  font-bold"
-            style={{ color: '#44D62C' }}
+            style={{ color: 'white' }}
           >
             Level Up Your Gaming Gear
           </motion.h1>
           <Link to="/shop">
             <Button
-              style={{ backgroundColor: '#44D62C' }}
-              className="hover:bg-green-600 px-8 py-3 text-lg font-semibold text-black"
+              style={{ backgroundColor: '#3AB223' }}
+              className="hover:bg-green-800 px-8 py-3 text-lg font-semibold text-white"
             >
               Shop Now
             </Button>
