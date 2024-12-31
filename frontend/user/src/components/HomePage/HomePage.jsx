@@ -100,50 +100,50 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Featured Products */}
-      {/* Featured Products */}
-<section className="container mx-auto px-4 py-12">
-  <h2 className="text-3xl font-bold text-center mb-8" style={{ color: '#44D62C' }}>
-    Featured Products
-  </h2>
-
-  {loading && <p className="text-center">Loading products...</p>}
-  {error && <p className="text-center text-red-500">{error}</p>}
-
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-    {products.map((product, index) => (
-      <div
-        key={index}
-        className="bg-gray-800 p-4 rounded-lg shadow-lg hover:shadow-green-500 transition-shadow"
-      >
-        <div className="h-48 bg-gray-700 rounded-lg mb-4 overflow-hidden">
-          {product.productImage.length > 0 ? (
-            <img
-              src={product.productImage[0]}
-              alt={product.title}
-              className="h-full w-full object-cover rounded-lg"
-            />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center text-gray-400">
-              No Image
-            </div>
-          )}
-        </div>
-        <h3 className="text-xl font-semibold text-center">{product.title}</h3>
-        <Link to={`/product_details/${product._id}`}>
-                <Button
-                  style={{ backgroundColor: '#44D62C' }}
-                  className="hover:bg-green-600 w-full py-2 text-black font-semibold"
-                  onClick={()=>handleProductDetails(product._id)}
-                >
-                  View Details
-                </Button>
-              </Link>
-      </div>
       
-    ))}
-  </div>
-</section>
+      {/* Featured Products */}
+      <section className="container mx-auto px-4 py-12">
+        <h2 className="text-3xl font-bold text-center mb-8" style={{ color: '#44D62C' }}>
+          Featured Products
+        </h2>
+      
+        {loading && <p className="text-center">Loading products...</p>}
+        {error && <p className="text-center text-red-500">{error}</p>}
+      
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          {products.map((product, index) => (
+            <div
+              key={index}
+              className="bg-gray-800 p-4 rounded-lg shadow-lg hover:shadow-green-500 transition-shadow"
+            >
+              <div className="h-48 bg-gray-700 rounded-lg mb-4 overflow-hidden">
+                {product.productImage.length > 0 ? (
+                  <img
+                    src={product.productImage[0]}
+                    alt={product.title}
+                    className="h-full w-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-gray-400">
+                    No Image
+                  </div>
+                )}
+              </div>
+              <h3 className="text-xl font-semibold text-center">{product.title}</h3>
+              <Link to={`/product_details/${product._id}`}>
+                      <Button
+                        style={{ backgroundColor: '#44D62C' }}
+                        className="hover:bg-green-600 w-full py-2 text-black font-semibold"
+                        onClick={()=>handleProductDetails(product._id)}
+                      >
+                        View Details
+                      </Button>
+                    </Link>
+            </div>
+            
+          ))}
+        </div>
+      </section>
 
 
       {/* Call to Action */}

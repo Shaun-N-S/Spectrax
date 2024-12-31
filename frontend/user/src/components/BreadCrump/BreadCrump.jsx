@@ -15,17 +15,17 @@ function Breadcrumbs({ productTitle }) {
     return null;
   }
 
-  // Initialize an empty string to build cumulative paths
+  
   let pathName = "";
 
-  // Create the breadcrumbs based on the path segments
+  
   const crumbs = pathSegments.map((crumb, index) => {
-    // Build the cumulative path for each segment
+    
     pathName += `/${crumb}`;
 
     // If the last segment is an ID (assuming it's a numeric ID or unique identifier), show the product title instead
     if (index === pathSegments.length - 1 && /\d/.test(crumb)) {
-      crumb = productTitle; // Use the product title instead of the ID for the last breadcrumb
+      crumb = productTitle; 
     }
 
     return (

@@ -407,13 +407,13 @@ const EditProduct = () => {
                 {images.map((image, index) => (
                   <div key={index} className="relative w-24">
                     <img
-                      src={product.productImage[index] || URL.createObjectURL(image)}
+                      src={image}
                       alt=""
                       className="rounded-lg w-full h-24 object-cover"
                     />
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(index)} // Correctly passing the function
+                      onClick={() => handleRemoveImage(index)} 
                       className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg"
                     >
                       &times;

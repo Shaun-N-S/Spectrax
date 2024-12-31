@@ -88,6 +88,7 @@ const signup = async (req, res) => {
       req.session.userOtp = otp;
       req.session.userData = { firstName, lastName, email, phone, password };
 
+
       // Debug log to verify session data
       console.log("Session after setting user data:", req.session);
 
@@ -171,6 +172,7 @@ const resendOtp = async (req, res) => {
     }
 
     // Save the OTP to the session or database
+    req.session.userOtp = null;
     req.session.userOtp = otp;
 
     return res.status(200).json({ message: "OTP resent successfully" });
@@ -252,15 +254,10 @@ const login = async (req, res) => {
       return res.status(400).json({message:'Your account is temporarily restricted. Please contact support.'})
     }
 
-
     if (!user) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
-    
-    
-
-    // Check if the provided password matches the stored hash
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -348,7 +345,7 @@ const refreshAccessToken = (req, res) => {
     console.error('Refresh token error:', error);
     // Clear the invalid refresh token
     res.clearCookie('refreshToken');
-    res.status(403).json({ message: 'Invalid or expired refresh token' });
+    res.status(401).json({ message: 'Invalid or expired refresh token' });
   }
 };
 

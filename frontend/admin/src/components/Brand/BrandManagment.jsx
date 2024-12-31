@@ -39,6 +39,29 @@ function BrandManagement() {
   const indexOfFirstBrand = indexOfLastBrand - brandsPerPage;
   const currentBrands = brands.slice(indexOfFirstBrand, indexOfLastBrand);
 
+
+
+  // Validation function for brand names
+const validateBrandName = (name) => {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return 'Brand name cannot be empty.';
+  }
+  
+  if (trimmedName.length < 3) {
+    return 'Brand name must be at least 3 characters long.';
+  }
+  if (!/^[a-zA-Z0-9\s]+$/.test(trimmedName)) {
+    return 'Brand name can only contain letters, numbers, and spaces.';
+  }
+  if(brands.find((brand) => brand.name.toLowerCase() === trimmedName.toLowerCase())){
+    return 'Brand name already exists'
+  }
+  
+  return '';
+};
+
+
   // Change page handler
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -57,13 +80,17 @@ function BrandManagement() {
     }
   };
 
+  
   const handleAddBrand = async (e) => {
     e.preventDefault();
     const name = newBrand.name.trim();
-    if (!name) {
-      setAddError('Brand name cannot be empty.');
+    const validationError = validateBrandName(name,brands);
+    
+    if (validationError) {
+      setAddError(validationError);
       return;
     }
+  
     try {
       const response = await axiosInstance.post('/addbrand', { name, status: "active" });
       setBrands([...brands, { _id: brands.length + 1, name, status: 'active' }]);
@@ -74,6 +101,7 @@ function BrandManagement() {
       toast.error('Error adding brand');
     }
   };
+  
 
   const handleEditBrand = (brand) => {
     setEditingBrand({ ...brand });
@@ -83,8 +111,9 @@ function BrandManagement() {
 
   const handleUpdateBrandName = async () => {
     const name = editingBrand.name.trim();
-    if (!name) {
-      setEditError('Brand name cannot be empty.');
+    const validationError = validateBrandName(name, brands, editingBrand._id); 
+    if (validationError) {
+      setEditError(validationError);
       return;
     }
     try {

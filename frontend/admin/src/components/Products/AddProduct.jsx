@@ -4,8 +4,12 @@ import axiosInstance from '@/axios/adminAxios';
 import {toast} from 'react-hot-toast';
 import cloudAxios from 'axios';
 import Cropper from 'react-easy-crop';
+import { useNavigate } from 'react-router-dom';
 
 const AddProduct = () => {
+
+  const navigate = useNavigate();
+
   const [title, setTitle] = useState('');
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState('');
@@ -347,14 +351,7 @@ const AddProduct = () => {
       specifications: specErrors
     };
 
-    // setErrors(newErrors);
-
-    // // Check if there are any errors
-    // if (Object.values(newErrors).some(error => error !== '') || Object.values(newErrors.specifications).some(error => error !== '')) {
-    //   toast.error('Please fix all errors before submitting');
-    //   return;
-    // }
-
+    
     try {
       // Validate required fields
       if (!title || !sku || !price || !color || !availableQuantity || !description || !categoryId || !productImages.length) {
@@ -397,8 +394,10 @@ const AddProduct = () => {
   
       const response = await axiosInstance.post('/product', productData);
       toast.success('Product added successfully!');
-      // onProductAdded();
+      
       resetForm();
+      
+      navigate('/products');
     } catch (error) {
       console.error('Error adding product:', error);
       toast.error('Error adding product. Please check the console for more details.');

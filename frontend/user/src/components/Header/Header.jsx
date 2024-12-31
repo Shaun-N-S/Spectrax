@@ -24,8 +24,13 @@ export default function Header() {
   };
 
   const handleUserAction = (path) => {
+    if(userDetails !== null){
     
     navigate(path);
+
+    }else{
+      navigate("/login");
+    }
   };
 
   const handleLogout = () => {
@@ -138,14 +143,14 @@ export default function Header() {
                             </Link>
                           </li>
                           <li >
-                            <button className="block w-full text-left px-4 py-2 hover:bg-gray-200" onClick={handleLogout}>
+                            <button className="block w-full text-left px-4 py-2 hover:bg-gray-200" onClick={handleLogout}  >
                               Logout
                             </button>
                           </li>
                         </>
                       ) : (
                         <li>
-                          <button className="block w-full text-left px-4 py-2 hover:bg-gray-200" onClick={handleLogout}>
+                          <button className="block w-full text-left px-4 py-2 hover:bg-gray-200" onClick={handleLogin}>
                             Login
                           </button>
                         </li>

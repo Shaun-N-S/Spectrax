@@ -20,7 +20,6 @@ userRoutes.post("/google-auth",googleAuth);
 
 userRoutes.get('/refresh-token', refreshAccessToken);
 userRoutes.post('/verifytoken', verifyAccessToken, (req, res) => {
-    // After middleware validates token, send success response
     res.json({ valid: true, user: req.user });
 });
 

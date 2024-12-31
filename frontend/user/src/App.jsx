@@ -13,6 +13,8 @@ import ProtectedComponent from './components/Protect/ProtectedComponent'
 import Footer from './components/Footer/Footer'
 import Breadcrumbs from './components/BreadCrump/BreadCrump'
 import { Toaster } from 'react-hot-toast';
+import AccountPage from './components/AccountPage/AccountPage'
+
 
 
 const App = () => {
@@ -28,10 +30,10 @@ const App = () => {
       <Route path='/signup' element={<ProtectEdit><SignUp/></ProtectEdit>}/>
       <Route path='/otp' element={<ProtectEdit><OtpVerification/></ProtectEdit>}/>
       <Route path='/home' element={<ProtectHome><Home/></ProtectHome>}/>
-      {/* <Route path='/home' element={<Home/>}/> */}
-      <Route path='/shop' element={<ProductPage/>}/>
+      <Route path='/shop' element={<ProtectedComponent><ProductPage/></ProtectedComponent>}/>
       <Route path='/product_details/:id' element={<ProtectedComponent><ProductDetails/></ProtectedComponent>}/>
-    </Routes>
+      <Route path='/Account' element={<ProtectedComponent><AccountPage/></ProtectedComponent>} />
+      </Routes>
     <Footer/>
     </BrowserRouter>
     </>

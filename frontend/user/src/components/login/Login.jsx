@@ -132,7 +132,7 @@ const Login = () => {
           </Link>
         </p>
         <br />
-
+          <div className="flex justify-center">
         <GoogleLogin
           onSuccess={async (credentialResponse) => {
             try {
@@ -153,6 +153,7 @@ const Login = () => {
             console.log("Login Failed");
           }}
         />
+        </div>
       </div>
     </div>
   );

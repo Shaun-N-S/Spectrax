@@ -41,7 +41,7 @@ axiosInstance.interceptors.response.use(
 
     // Handle 403 Forbidden error
     if (error.response?.status === 403) {
-      toast.error('Your account has been te restricted. Please contact support.', {
+      toast.error('Your account has been temporarly restricted. Please contact support.', {
         position: 'top-right',
         autoClose: 5000,
         hideProgressBar: false,

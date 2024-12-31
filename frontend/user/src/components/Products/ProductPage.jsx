@@ -80,7 +80,7 @@ const ProductPage = () => {
                 </p>
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-green-400 text-2xl font-bold">
-                    ${product.price}
+                  ₹{product.price}
                   </span>
                   <div className="flex items-center text-yellow-400">
                     {[...Array(5)].map((_, index) => (

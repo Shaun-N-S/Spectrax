@@ -16,7 +16,7 @@ const adminLogin = async (req, res) => {
 
     if (adminInfo.isAdmin == true) {
       if (await bcrypt.compare(password, adminInfo.password)) {
-        const token = jwt.sign({ id: adminInfo._id }, process.env.JWT_SECERT, { expiresIn: '30d' });
+        const token = jwt.sign({ id: adminInfo._id }, process.env.JWT_SECERT, { expiresIn: '3d' });
 
         res.cookie("token", token, {
           httpOnly: true,
@@ -50,10 +50,10 @@ const adminLogin = async (req, res) => {
 // Fetch all users
 const fetchAllUsers = async (req, res) => {
   try {
-      // Retrieve all users from the database
+      
       const users = await User.find({isAdmin:false});
 
-      // Check if users exist
+      
       if (!users || users.length === 0) {
           return res.status(404).json({ message: 'No users found' });
       }
