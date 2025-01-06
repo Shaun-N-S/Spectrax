@@ -151,7 +151,10 @@ const verifyOtp = async (req, res) => {
 const resendOtp = async (req, res) => {
   console.log("resend otp");
   try {
-    const { email } = req.body;
+    const email = req.body.email || (req.session.userData && req.session.userData.email);
+
+
+    
 
     if (!email) {
       return res.status(400).json({ message: "Email is required to resend OTP" });
@@ -384,6 +387,203 @@ const updateUserStatus = async (req, res) => {
 
 
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Generate OTP
+    const otp = generateOtp();
+    console.log("Generated OTP:", otp); // Remove in production
+
+    // Send verification email with OTP
+    const emailSent = await sendVerificationEmail(email, otp);
+    if (!emailSent) {
+      return res.status(500).json({ message: "Failed to send verification email" });
+    }
+
+    // Store OTP and user data in the session
+    req.session.userOtp = otp;
+    req.session.userData = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+    };
+
+    // Debug log (Remove in production)
+    console.log("Session after setting user data:", req.session);
+
+    // Respond with success message
+    res.status(200).json({ success: true, message: "OTP sent successfully" });
+
+  } catch (error) {
+    console.error("Error in forget password:", error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const forgotPasswordVerifyOtp = async (req,res)=>{
+  try {
+    const {otp} = req.body;
+    console.log("Entered otp :",otp);
+    console.log("session otp :",req.session.userOtp);
+
+    if(!otp){
+      return res.status(400).json({message:'Please enter otp'});
+    }
+
+    if(req.session.userOtp === otp){
+      return res.status(200).json({message:"otp verified successfully"})
+    }
+  } catch (error) {
+    console.log('Error in verifying forgot password otp:',error);
+    return res.status(500).json({message:"Interna server error"});
+  }
+}
+
+
+
+const resetPassword = async (req, res) => {
+  try {
+    // Extract new password from the request body
+    const { newPassword } = req.body;
+
+    // Validate session and retrieve email
+    if (!req.session.userData || !req.session.userData.email) {
+      return res.status(400).json({ message: "Session expired or invalid. Please try again." });
+    }
+
+    const email = req.session.userData.email;
+
+    // Find the user in the database
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Hash the new password securely
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update the user's password in the database
+    user.password = hashedPassword;
+    await user.save();
+
+    // Clear sensitive session data
+    req.session.userData = null;
+    req.session.userOtp = null;
+
+    // Respond with success
+    res.status(200).json({ success: true, message: "Password reset successfully." });
+
+  } catch (error) {
+    console.error("Error in reset password:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+const upadateProfile = async (req,res)=>{
+  try {
+    
+    const {firstName,lastName,email,phone} = req.body;
+
+    if(!email){
+      return res.status(400).json({message:"Email is required"});
+    }
+
+    const user = await User.findOne({email});
+
+    if(!user){
+      return res.status(404).json({message:"User not found"});
+    }
+
+    if(firstName){
+      user.firstName = firstName;
+    }
+    if(lastName){
+      user.lastName = lastName;
+    }
+    if(phone){
+      user.phone = phone;
+    }
+    
+    await user.save();
+
+    return res.status(200).json({message:'Profile updated successfully',user});
+
+  } catch (error) {
+    console.log('Error in updating profile:',error);
+    return res.status(500).json({message:'Internal server error'});
+    
+  }
+}
+
+
+const userProfile  = async(req,res)=>{
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId);
+    if(!user){
+      return res.status(404).json({message:"User not found"});
+    }
+    return res.status(200).json({message:"User found successfully",user});
+
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({message:"Internal server error"});
+  }
+}
+
+
+const updatePassword = async (req, res) => {
+  try {
+    const { email, oldPassword, newPassword } = req.body;
+
+    if (!email || !oldPassword || !newPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Ensure email is case insensitive
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log("Stored Password:", user.password); // Debugging Step
+
+    // Verify the old password
+    const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+
+    console.log("Password Comparison Result:", isPasswordValid); // Debugging Step
+
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: "Invalid Old password" });
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    return res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Password Update Error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
 
 
 
@@ -397,5 +597,10 @@ module.exports = {
     googleAuth,
     refreshAccessToken,
     updateUserStatus,
-    
+    forgotPassword,
+    forgotPasswordVerifyOtp,
+    resetPassword,
+    upadateProfile,
+    userProfile,
+    updatePassword,
 }

@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'; // Assuming Shadcn Button compo
 import AdminSidebar from '../SideBar/AdminSidebar';
 import axiosInstance from '@/axios/adminAxios';
 import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
+
 
 const ProductList = () => {
   const [products, setProducts] = useState([]);
@@ -37,19 +39,33 @@ const ProductList = () => {
 
   const handleStatusToggle = (productId, currentStatus) => {
     const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
-
-    axiosInstance.patch(`/toggleProductStatus/${productId}`, { status: newStatus })
-      .then(() => {
-        setProducts((prevProducts) =>
-          prevProducts.map((product) =>
-            product._id === productId ? { ...product, status: newStatus } : product
-          )
-        );
-      })
-      .catch(err => {
-        console.error('Error updating product status:', err);
-        toast.error('Error updating product status');
-      });
+  
+    Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you want to ${newStatus === 'active' ? 'activate' : 'block'} this product?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, change it!',
+      cancelButtonText: 'No, cancel',
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        axiosInstance.patch(`/toggleProductStatus/${productId}`, { status: newStatus })
+          .then(() => {
+            setProducts((prevProducts) =>
+              prevProducts.map((product) =>
+                product._id === productId ? { ...product, status: newStatus } : product
+              )
+            );
+            Swal.fire('Success!', `Product has been ${newStatus}.`, 'success');
+          })
+          .catch(err => {
+            console.error('Error updating product status:', err);
+            toast.error('Error updating product status');
+          });
+      }
+    });
   };
 
   const handleEdit = (productId) => {

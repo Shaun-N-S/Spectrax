@@ -14,8 +14,13 @@ import Footer from './components/Footer/Footer'
 import Breadcrumbs from './components/BreadCrump/BreadCrump'
 import { Toaster } from 'react-hot-toast';
 import AccountPage from './components/AccountPage/AccountPage'
-
-
+import ForgetPassword from './components/ForgetPassword/ForgetPassword'
+import ForgotPasswordOtp from './components/ForgetPassword/ForgetPasswordOtp'
+import ResetPassword from './components/ForgetPassword/ResetPassword'
+import CartPage from './components/Cart/CartPage'
+import Filter from './components/Products/Filter'
+import CheckoutPage from './components/CheckoutPage/CheckoutPage'
+import OrderSuccessful from './components/CheckoutPage/OrderSuccessfull'
 
 const App = () => {
   return (
@@ -29,10 +34,17 @@ const App = () => {
       <Route path="/login" element={<ProtectEdit><Login/></ProtectEdit>} />
       <Route path='/signup' element={<ProtectEdit><SignUp/></ProtectEdit>}/>
       <Route path='/otp' element={<ProtectEdit><OtpVerification/></ProtectEdit>}/>
+      <Route path='/forgotpassword' element={<ProtectEdit><ForgetPassword/></ProtectEdit>}/>
+      <Route path='/forgotpassword/otp' element={<ProtectEdit><ForgotPasswordOtp/></ProtectEdit>}/>
+      <Route path='/resetpassword' element={<ProtectEdit><ResetPassword/></ProtectEdit>}/>
       <Route path='/home' element={<ProtectHome><Home/></ProtectHome>}/>
       <Route path='/shop' element={<ProtectedComponent><ProductPage/></ProtectedComponent>}/>
       <Route path='/product_details/:id' element={<ProtectedComponent><ProductDetails/></ProtectedComponent>}/>
       <Route path='/Account' element={<ProtectedComponent><AccountPage/></ProtectedComponent>} />
+      <Route path='/cart' element ={<ProtectedComponent><CartPage/></ProtectedComponent>}/>
+      <Route path='/filter' element={<ProtectedComponent><Filter/></ProtectedComponent>}/>
+      <Route path='/checkout' element={<ProtectedComponent><CheckoutPage/></ProtectedComponent>} />
+      <Route path='/orderSuccessful/:id' element={<ProtectedComponent><OrderSuccessful/></ProtectedComponent>}/>
       </Routes>
     <Footer/>
     </BrowserRouter>

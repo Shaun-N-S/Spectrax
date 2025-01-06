@@ -4,6 +4,8 @@ import axios from '../../axios/adminAxios';
 import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
 import AdminSidebar from '../SideBar/AdminSidebar';
+import Swal from 'sweetalert2';
+
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -154,12 +156,43 @@ const CategoryManagement = () => {
   const handleToggleStatus = async (id, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      await axios.patch(`/toggleCategoryStatus/${id}`, { status: newStatus });
-      setFetch(!fetch);
-      toast.success(`Category status changed to ${newStatus}`);
+      
+      // Confirmation Alert Before Changing Status
+      const result = await Swal.fire({
+        title: `Are you sure?`,
+        text: `Do you want to ${newStatus} this category?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: `Yes, ${newStatus} it!`,
+        cancelButtonText: 'Cancel',
+      });
+  
+      if (result.isConfirmed) {
+        await axios.patch(`/toggleCategoryStatus/${id}`, { status: newStatus });
+        
+        // Update local state
+        setCategories((prevCategories) =>
+          prevCategories.map((category) =>
+            category._id === id ? { ...category, status: newStatus } : category
+          )
+        );
+  
+        // Success Alert
+        Swal.fire({
+          title: 'Success!',
+          text: `Category has been ${newStatus}d.`,
+          icon: 'success',
+        });
+      }
     } catch (error) {
       console.error('Error toggling category status:', error);
-      toast.error('Error toggling category status');
+  
+      // Error Alert
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to change category status. Please try again later.',
+        icon: 'error',
+      });
     }
   };
 

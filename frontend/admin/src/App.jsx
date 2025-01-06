@@ -11,6 +11,7 @@ import AdminSidebar from './components/SideBar/AdminSidebar'
 import CustomerList from './components/Customers/CustomerList'
 import BrandManagement from './components/Brand/BrandManagment'
 import EditProduct from './components/Products/EditProduct'
+import OrderManagement from './components/OrderManagement/OrderManagment'
 // import { ToastContainer } from 'react-toastify';
 // import 'react-toastify/dist/ReactToastify.css';
 import { Toaster } from 'react-hot-toast';
@@ -28,8 +29,8 @@ const App = () => (
         <Route path="/add-product" element={<AdminAuth><AdminSidebar><AddProduct /></AdminSidebar></AdminAuth>} />
         <Route path='/customerlist' element={<AdminAuth><AdminSidebar><CustomerList/></AdminSidebar></AdminAuth>}/>
         <Route path='/brands' element={<AdminAuth><AdminSidebar><BrandManagement/></AdminSidebar></AdminAuth>}/>
+        <Route path='/orders' element={<AdminAuth><AdminSidebar><OrderManagement/></AdminSidebar></AdminAuth>}/>
         <Route path='/categories' element={<AdminAuth><AdminSidebar><CategoryManagement/></AdminSidebar></AdminAuth>}/>
-        {/* <Route path='/orders' element={}/> */}
         <Route path='/edit-product/:id' element={<AdminAuth><AdminSidebar><EditProduct/></AdminSidebar></AdminAuth>}/>
       </Routes>
     </BrowserRouter>

@@ -7,6 +7,8 @@ import { Switch } from '@/components/ui/switch';
 import { PlusCircle, Pencil, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axiosInstance from '@/axios/adminAxios';
+import Swal from 'sweetalert2';
+
 
 function BrandManagement() {
   const [brands, setBrands] = useState([]);
@@ -66,19 +68,33 @@ const validateBrandName = (name) => {
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const handleStatusChange = async (id, currentStatus) => {
-    try {
-      const response = await axiosInstance.patch(`/toggleBrandStatus/${id}`);
-      setBrands((prevBrands) =>
-        prevBrands.map((brand) =>
-          brand._id === id ? { ...brand, status: currentStatus === 'active' ? 'blocked' : 'active' } : brand
-        )
-      );
-      toast.success(response.data.message || 'Brand status updated successfully');
-    } catch (error) {
-      console.error('Error updating brand status:', error);
-      toast.error('Failed to update brand status');
+    const result = await Swal.fire({
+      title: `Are you sure?`,
+      text: `You are about to ${currentStatus === 'active' ? 'block' : 'unblock'} this brand.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, proceed!',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+    });
+  
+    if (result.isConfirmed) {
+      try {
+        const response = await axiosInstance.patch(`/toggleBrandStatus/${id}`);
+        setBrands((prevBrands) =>
+          prevBrands.map((brand) =>
+            brand._id === id ? { ...brand, status: currentStatus === 'active' ? 'blocked' : 'active' } : brand
+          )
+        );
+        Swal.fire('Success!', response.data.message || 'Brand status updated successfully', 'success');
+      } catch (error) {
+        console.error('Error updating brand status:', error);
+        Swal.fire('Error!', 'Failed to update brand status', 'error');
+      }
     }
   };
+  
 
   
   const handleAddBrand = async (e) => {

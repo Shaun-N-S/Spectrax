@@ -1,32 +1,43 @@
 const mongoose = require('mongoose');
-const user = require('./userModel');
+const User = require('./userModel');
 
 const addressSchema = new mongoose.Schema({
-    userId:{
-        type:mongoose.Schema.Types.ObjectId,
-        ref:'User',
-        required:true,
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
     },
-    street:{
-        type:String,
-        required:true,
+    address: {
+        type: String,
+        required: true,
+        trim: true,
     },
-    city:{
-        type:String,
-        required:true,
+    city: {
+        type: String,
+        required: true,
+        trim: true,
     },
-    state:{
-        type:String,
-        required:true,
+    state: {
+        type: String,
+        required: true,
+        trim: true,
     },
-    pinCode:{
-        type:Number,
-        required:true,
+    pinCode: {
+        type: String,
+        required: true,
     },
-    country:{
-        type:String,
-        required:true,
+    country: {
+        type: String,
+        required: true,
+        trim: true,
     },
-},{
-    timestamps:true
-})
+    status: {
+        type: String,
+        enum: ['active', 'Blocked'],
+        default: 'active',
+    },
+}, {
+    timestamps: true,
+});
+
+module.exports = mongoose.model('Address', addressSchema);

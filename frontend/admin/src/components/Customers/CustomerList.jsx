@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import axiosInstance from '@/axios/adminAxios';
+import Swal from 'sweetalert2';
 
 
 
@@ -38,31 +39,50 @@ function CustomerList() {
       });
   }, [customersPerPage]);
 
-  const handleStatusChange = (id) => {
-    // Find the current status of the user
-    const customer = customers.find((c) => c.id === id);
-
-    // Toggle the status between 'active' and 'blocked'
-    const newStatus = customer.status ? 'blocked' : 'active';
-
-    // Make API call to update status in the database
-    axiosInstance
-      .patch(`/updateuserstatus/${id}`, { status: newStatus })
-      .then((response) => {
-        console.log('Status updated successfully:', response.data);
-        // Update the local state only if the API call is successful
-        setCustomers(
-          customers.map((customer) =>
+  const handleStatusChange = async (id) => {
+    try {
+      const customer = customers.find((c) => c.id === id);
+      const newStatus = customer.status ? 'blocked' : 'active';
+  
+      // Confirmation Alert
+      const result = await Swal.fire({
+        title: `Are you sure?`,
+        text: `Do you want to ${newStatus} this customer?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: `Yes, ${newStatus} them!`,
+        cancelButtonText: 'Cancel',
+      });
+  
+      if (result.isConfirmed) {
+        // API Call
+        await axiosInstance.patch(`/updateuserstatus/${id}`, { status: newStatus });
+        
+        // Update local state
+        setCustomers((prevCustomers) =>
+          prevCustomers.map((customer) =>
             customer.id === id ? { ...customer, status: newStatus === 'active' } : customer
           )
         );
-      })
-      .catch((err) => {
-        console.error('Error updating status:', err);
-        alert('Failed to update status. Please try again.');
+  
+        // Success Alert
+        Swal.fire({
+          title: 'Success!',
+          text: `Customer has been ${newStatus}.`,
+          icon: 'success',
+        });
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+  
+      // Error Alert
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to update customer status. Please try again.',
+        icon: 'error',
       });
+    }
   };
-
   const filteredCustomers = customers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

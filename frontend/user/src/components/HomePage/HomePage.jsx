@@ -13,7 +13,7 @@ const HomePage = () => {
 
   // Fetch products from the backend
   useEffect(() => {
-    axiosInstance.get('/showproducts')
+    axiosInstance.get('/showproductsisActive')
       .then(response => {
         console.log('API Response:', response.data);
         setProducts(response.data.products);

@@ -67,6 +67,12 @@ const EditProduct = () => {
     },
   });
 
+
+  const [variants, setVariants] = useState([]);
+  const [variantErrors, setVariantErrors] = useState([]);
+
+
+
   // Fetch product data by ID
   useEffect(() => {
     const fetchData = async () => {
@@ -75,10 +81,11 @@ const EditProduct = () => {
         console.log(" fetched dataaaaaaaa......  ", response.data);
 
         setProduct(response.data.product);
+        setVariants(response.data.product.variants || []);
 
         const arrimg = response.data.product.productImage.map((img) => {
           return img;
-        });
+        },[id]);
 
         console.log("img.................", arrimg);
 
@@ -197,47 +204,45 @@ const EditProduct = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
+    // Validate variants first
+    const isVariantsValid = validateVariants(variants);
+    if (!isVariantsValid) {
+      toast.error("Please check variant details");
+      return;
+    }
+  
     try {
       let imageUrls = [];
-
-      // Filter out blob URLs and log them
-      const validImages = images.filter((image) => {
-        if (typeof image === "string" && image.startsWith("blob:")) {
-          console.log("Blob URL found:", image); // Log the blob URL
-          return false; // Exclude this blob URL from being uploaded
-        }
-        return true; // Keep valid image files
-      });
-
-      // Upload only valid image files (not blob URLs)
-      for (const image of validImages) {
-        console.log("Uploading image:", image); // Log valid image files
-
+  
+      // Keep existing URLs and handle new files
+      const existingUrls = images.filter(img => typeof img === "string" && !img.startsWith("blob:"));
+      const newImages = images.filter(img => img instanceof File);
+  
+      imageUrls = [...existingUrls];
+  
+      // Upload new images
+      for (const image of newImages) {
         const formData = new FormData();
         formData.append("file", image);
-        formData.append("upload_preset", "products"); // Use your Cloudinary upload preset
-
-        console.log("loooooog not");
-
-        const response2 = await cloudAxios.post(
+        formData.append("upload_preset", "products");
+  
+        const response = await cloudAxios.post(
           "https://api.cloudinary.com/v1_1/djfuu8l1u/image/upload",
           formData
         );
-        console.log("......resomse2", response2);
-
-        imageUrls.push(response2.data.secure_url);
+        imageUrls.push(response.data.secure_url);
       }
-
-      // Prepare the updated product data
-      const updatedProduct = { ...product, productImage: imageUrls };
-      console.log(" updated.... ", updatedProduct);
-
-      // Send the updated product data to the backend
+  
+      const updatedProduct = { 
+        ...product, 
+        productImage: imageUrls,
+        variants: variants 
+      };
+  
       await axiosInstance.put(`/product/${id}`, updatedProduct);
-
       toast.success("Product updated successfully!");
-      setTimeout(() => navigate("/products"), 2000); // Delay of 2 seconds to redirect
+      setTimeout(() => navigate("/products"), 2000);
     } catch (error) {
       console.error("Error updating product:", error);
       toast.error("Failed to update product");
@@ -252,6 +257,42 @@ const EditProduct = () => {
     const updatedImages = images.filter((_, i) => i !== index);
     setImages(updatedImages);
   };
+
+
+
+  const validateVariants = (variants) => {
+    const errors = variants.map(variant => ({
+      sku: !variant.sku ? 'SKU is required' : '',
+      price: !variant.price ? 'Price is required' : 
+             variant.price <= 0 ? 'Price must be greater than 0' : '',
+      availableQuantity: !variant.availableQuantity ? 'Quantity is required' : 
+                        variant.availableQuantity < 0 ? 'Quantity cannot be negative' : ''
+    }));
+    setVariantErrors(errors);
+    return errors.every(error => !error.sku && !error.price && !error.availableQuantity);
+  };
+
+
+
+  const handleVariantChange = (index, field, value) => {
+    const updatedVariants = [...variants];
+    updatedVariants[index][field] = value;
+    setVariants(updatedVariants);
+  };
+
+  
+
+
+  const handleRemoveVariant = (index) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
+
+
+
+
+
+
+
 
   return (
     <div className="flex">
@@ -367,7 +408,7 @@ const EditProduct = () => {
               )}
             </div>
 
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="availableQuantity">Available Quantity</Label>
               <Input
                 id="availableQuantity"
@@ -383,7 +424,7 @@ const EditProduct = () => {
                   {errors.availableQuantity}
                 </p>
               )}
-            </div>
+            </div> */}
 
             <div className="col-span-2 space-y-2">
               <Label htmlFor="description">Description</Label>
@@ -556,6 +597,54 @@ const EditProduct = () => {
             </div>
           </div>
 
+            <div className="col-span-2 mt-6">
+            <h3 className="text-lg font-semibold mb-4">Product Variants ({variants.length})</h3>
+            <div className="space-y-4">
+            {variants.map((variant, index) => (
+              <div key={index} className="border p-4 rounded-lg">
+                {/* ... existing variant combination display ... */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label>SKU</Label>
+                    <Input
+                      value={variant.sku}
+                      onChange={(e) => handleVariantChange(index, 'sku', e.target.value)}
+                      className={variantErrors[index]?.sku ? "border-red-500" : ""}
+                    />
+                    {variantErrors[index]?.sku && (
+                      <p className="text-red-500 text-xs mt-1">{variantErrors[index].sku}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label>Price</Label>
+                    <Input
+                      type="number"
+                      value={variant.price}
+                      onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
+                      className={variantErrors[index]?.price ? "border-red-500" : ""}
+                    />
+                    {variantErrors[index]?.price && (
+                      <p className="text-red-500 text-xs mt-1">{variantErrors[index].price}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      value={variant.availableQuantity}
+                      onChange={(e) => handleVariantChange(index, 'availableQuantity', e.target.value)}
+                      className={variantErrors[index]?.availableQuantity ? "border-red-500" : ""}
+                    />
+                    {variantErrors[index]?.availableQuantity && (
+                      <p className="text-red-500 text-xs mt-1">{variantErrors[index].availableQuantity}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            </div>
+          </div>
+          
           <div className="flex justify-end space-x-4">
             <Button
               type="button"

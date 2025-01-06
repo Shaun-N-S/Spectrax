@@ -80,6 +80,8 @@ const showProductById = async (req, res) => {
       if (!product) {
         return res.status(404).json({ message: 'Product not found' });
       }
+
+      
   
       res.status(200).json({ message: 'Product retrieved successfully', product });
     } catch (error) {
@@ -170,6 +172,81 @@ const toggleProductStatus = async(req,res)=>{
 }
 
 
+const filteredProduct = async (req, res) => {
+  try {
+    const { sortBy, brands, categories, minPrice, maxPrice } = req.query;
+
+    console.log(
+      "SortBy:", sortBy,
+      "Brands:", brands,
+      "Categories:", categories,
+      "MinPrice:", minPrice,
+      "MaxPrice:", maxPrice
+    );
+
+    // Initialize filter object
+    const filter = {};
+
+    // Filter by brands
+    if (brands) {
+      filter.brandId = { $in: Array.isArray(brands) ? brands : [brands] };
+    }
+
+    // Filter by categories
+    if (categories) {
+      filter.categoryId = { $in: Array.isArray(categories) ? categories : [categories] };
+    }
+
+    // Filter by price range
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = Number(minPrice);
+      if (maxPrice) filter.price.$lte = Number(maxPrice);
+    }
+
+    // Define sorting options
+    const sortOptions = {};
+    switch (sortBy) {
+      case 'popularity':
+        sortOptions.popularity = -1;
+        break;
+      case 'price-low-high':
+        sortOptions.price = 1;
+        break;
+      case 'price-high-low':
+        sortOptions.price = -1;
+        break;
+      case 'average-rating':
+        sortOptions.rating = -1;
+        break;
+      case 'new-arrivals':
+        sortOptions.createdAt = -1;
+        break;
+      case 'a-z':
+        sortOptions.title = 1;
+        break;
+      case 'z-a':
+        sortOptions.title = -1;
+        break;
+      default:
+        sortOptions.createdAt = -1; 
+        break;
+    }
+
+    // Fetch products based on filters and sort options
+    console.log(sortOptions)
+    const products = await Product.find({...filter,status:"active"}).sort(sortOptions);
+
+    return res.status(200).json(products);
+  } catch (error) {
+    console.error('Error in filtering products:', error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+
+
 
 
 
@@ -180,7 +257,8 @@ module.exports = {
     editProduct,
     productsByCategory,
     toggleProductStatus,
-    showProductsIsActive
+    showProductsIsActive,
+    filteredProduct,
 
 
 }

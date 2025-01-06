@@ -5,17 +5,29 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { FaShoppingCart, FaStar } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useSelector } from "react-redux";
+import FilterComponent from "./Filter";
 
 const ProductPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false); 
+
+
+  const userDetails = useSelector((state)=>state.user)
+  const getUserId = (userDetails)=>{
+    return userDetails?.user?._id || userDetails?.user?.id
+  }
+  // console.log(userId)
 
   useEffect(() => {
     axiosInstance
       .get("/showproductsisActive")
       .then((response) => {
         setProducts(response.data.products);
+        
         setLoading(false);
       })
       .catch((err) => {
@@ -25,6 +37,35 @@ const ProductPage = () => {
   }, []);
 
   const navigate = useNavigate();
+
+  const userId = getUserId(userDetails)
+  const handleCart = async (userId, productId, variantId) => {
+    console.log("UserId:", userId);
+  console.log("ProductId:", productId);
+  console.log("VariantId:", variantId);
+
+    try {
+      await axiosInstance.post(
+        '/Cart',
+        { 
+          userId,
+          productId,
+          variantId,
+          quantity: 1
+        },
+        { withCredentials: true } 
+      );
+      
+      console.log("Product added to cart successfully");
+      toast.success("Added to cart");
+      navigate('/cart');
+    } catch (error) {
+      console.log("Error in handle cart:", error || error.message);
+      toast.error("Product out of stock  ");
+    }
+  };
+  
+  
 
   const handleShop = (productId) => {
     navigate(`/product_details/${productId}`);
@@ -46,12 +87,21 @@ const ProductPage = () => {
     );
   }
 
+  console.log(products._id)
   return (
     <div className="bg-black min-h-screen text-white py-12 px-4 sm:px-6 lg:px-8">
+      
+      
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl md:text-5xl font-extrabold text-center text-green-400 mb-12 tracking-tight">
           Our Products
         </h1>
+        <FilterComponent 
+  isOpen={isFilterOpen} 
+  setIsOpen={setIsFilterOpen}
+  setProducts={setProducts}
+/>
+        
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {products.map((product) => (
             <Card
@@ -95,6 +145,8 @@ const ProductPage = () => {
                   <Button
                     variant="outline"
                     className="w-full border-green-500 text-green-400 hover:bg-green-500 hover:text-black transition-colors duration-300"
+                    onClick={()=>handleCart(userId, product._id, product.variants?.[0]?._id)}
+                    
                   >
                     <FaShoppingCart className="mr-2" />
                     Add to Cart
@@ -111,6 +163,9 @@ const ProductPage = () => {
             </Card>
           ))}
         </div>
+
+        
+
       </div>
     </div>
   );

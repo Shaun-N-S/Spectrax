@@ -22,7 +22,7 @@ const AdminSidebar = ({children}) => {
   const adminMenuItems = [
     { icon: FaHome, text: 'Dashboard', href: '/home' },
     { icon: FaBox, text: 'Products', href: '/products' },
-    // { icon: FaShoppingCart, text: 'Orders', href: '/orders' },
+    { icon: FaShoppingCart, text: 'Orders', href: '/orders' },
     { icon: FaUsers, text: 'Customers', href: '/customerlist' },
     { icon: FaList, text: 'Categories', href: '/categories' },
     { icon: FaIndustry, text: 'Brands', href: '/brands' },

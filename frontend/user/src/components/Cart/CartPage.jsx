@@ -1,0 +1,310 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { 
+  Card, 
+  CardContent, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Separator } from "@/components/ui/separator"
+import { Minus, Plus, Trash2, CreditCard } from 'lucide-react'
+import axiosInstance from '@/axios/userAxios'
+import { useSelector } from 'react-redux'
+import {toast} from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom'
+
+export default function CartPage() {
+  const [cartItems, setCartItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const userDetails = useSelector((state) => state.user)
+  const getUserId = (userDetails)=>{
+    return userDetails?.user?._id || userDetails?.user?.id;
+  }
+
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const userId = getUserId(userDetails)
+    const fetchCartData = async () => {
+      try {
+        setLoading(true);
+  
+        // Fetch cart details
+        const cartResponse = await axiosInstance.post('/cart/details', { userId });
+        console.log(cartResponse);
+  
+        if (!cartResponse.data?.data?.items?.length) {
+          setCartItems([]);
+          return;
+        }
+  
+        // Fetch product details and ensure only 'active' products are included
+        const itemsWithDetails = await Promise.all(
+          cartResponse.data.data.items.map(async (item) => {
+            try {
+              // Fetch product details by ID
+              const productResponse = await axiosInstance.get(`/showProductsById/${item.productId}`);
+              const product = productResponse.data.product;
+              
+              console.log(product);
+  
+              // Ensure product exists and is active
+              if (!product || product.status !== 'active') {
+                return null; // Skip inactive or non-existing products
+              }
+  
+              // Find the selected variant
+              const selectedVariant = product.variants.find(v => v._id === item.variantId);
+  
+              return {
+                id: item._id,
+                productId: item.productId,
+                variantId: item.variantId,
+                name: product.title,
+                variant: selectedVariant,
+                price: selectedVariant ? selectedVariant.price : product.price,
+                quantity: item.quantity,
+                image: product.productImage?.[0] || "/placeholder.svg?height=100&width=100"
+              };
+            } catch (error) {
+              console.log(`Failed to fetch product ${item.productId}:`, error);
+              return null; // Skip products that fail to load
+            }
+          })
+        );
+  
+        // Filter out null values (inactive or failed to load products)
+        const activeItems = itemsWithDetails.filter(item => item !== null);
+        setCartItems(activeItems);
+  
+      } catch (err) {
+        console.error('Cart fetch error:', err);
+        setError(err.message || 'Failed to fetch cart items');
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    if (userId) {
+      fetchCartData();
+    }
+  }, []);
+  
+
+  const updateQuantity = async (id, newQuantity , availableQuantity) => {
+    console.log(availableQuantity,newQuantity)
+    const userId = getUserId(userDetails)
+    try {
+      // Check if new quantity exceeds limit of 7
+      if (newQuantity > 7) {
+        toast.error("Maximum quantity limit is 7 items");
+        return;
+      }
+      console.log(cartItems)
+
+      if(newQuantity > availableQuantity){
+        toast.error("Over than stock");
+        return
+      }
+  
+      // Check if quantity is less than 1
+      if (newQuantity <= 0) {
+        toast.error("Quantity cannot be less than 1");
+        return;
+      }
+  
+      // If checks pass, update the quantity
+      await axiosInstance.patch(`/cart/update-quantity`, {
+        userId: userId,
+        itemId: id,
+        quantity: newQuantity
+      });
+  
+      setCartItems(cartItems.map(item => 
+        item.id === id ? { ...item, quantity: newQuantity } : item
+      ));
+  
+      toast.success("Cart updated successfully");
+    } catch (err) {
+      console.error('Update quantity error:', err);
+      toast.error('Failed to update quantity');
+      setError('Failed to update quantity');
+    }
+  };
+
+
+
+
+  
+  const removeItem = async (id) => {
+    const userId = getUserId(userDetails)
+    try {
+      await axiosInstance.delete(`/cart/remove-item/${id}`, {
+        data: { 
+          userId: userId,
+          itemId: id 
+        }
+      });
+  
+      setCartItems(cartItems.filter(item => item.id !== id));
+    } catch (err) {
+      console.error('Remove item error:', err);
+      setError('Failed to remove item');
+    }
+  };
+  
+
+  const calculateSubtotal = () => {
+    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
+  }
+
+  // const calculateDiscount = () => {
+  //   return calculateSubtotal() * 0.05
+  // }
+
+  const calculateTotal = () => {
+    return calculateSubtotal() //- calculateDiscount()
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <p>Loading cart...</p>
+      </div>
+    )
+  }
+
+  const handleCheckout = () => {
+    navigate('/checkout');
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <p className="text-red-500">Error: {error}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <Card className="bg-gray-900 border-gray-800 shadow-2xl">
+          <CardHeader className="border-b border-gray-800">
+            <CardTitle className="text-3xl font-bold text-center text-white">Your Cart</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {cartItems.length === 0 ? (
+              <p className="text-center text-gray-300">Your cart is empty.</p>
+            ) : (
+              <div className="space-y-6">
+                {cartItems.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-4 text-white">
+                  <img src={item.image} alt={item.name} className="w-24 h-24 object-cover rounded-md" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg">{item.name}</h3>
+                    {item.variant && (
+                      <>
+                        <div className="text-sm text-gray-400 mt-1">
+                          {item.variant.attributes.map((attr, index) => (
+                            <span key={index} className="mr-2">
+                              {attr.name}: {attr.value}
+                              {index < item.variant.attributes.length - 1 ? ', ' : ''}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="text-sm mt-1">
+                          <span className={`${
+                            item.variant.availableQuantity < 5 ? 'text-red-400' : 'text-gray-400'
+                          }`}>
+                            {item.variant.availableQuantity < 5 
+                              ? `Only ${item.variant.availableQuantity} left in stock!` 
+                              : `In Stock: ${item.variant.availableQuantity}`}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    <p className="text-gray-400 mt-1">₹{item.price.toFixed(2)}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      disabled={item.quantity <= 1}
+                      className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <Input 
+                      type="number" 
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (!isNaN(value)) {
+                          updateQuantity(item.id, value);
+                        }
+                      }}
+                      min="1"
+                      max="7"
+                      className="w-16 text-center bg-gray-800 border-gray-700"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => updateQuantity(item.id, item.quantity + 1 , item.variant.availableQuantity)}
+                      disabled={item.quantity >= 7}
+                      className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                    <Button 
+                      variant="destructive" 
+                      size="icon"
+                      onClick={() => removeItem(item.id)}
+                      className="bg-red-900 hover:bg-red-800"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4 text-white">
+            <Separator className="bg-gray-800" />
+            <div className="w-full space-y-2">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>₹{calculateSubtotal().toFixed(2)}</span>
+              </div>
+              {/* <div className="flex justify-between text-gray-400">
+                <span>Discount (5%)</span>
+                <span>₹{calculateDiscount().toFixed(2)}</span>
+              </div> */}
+              <Separator className="bg-gray-800" />
+              <div className="flex justify-between text-lg font-semibold">
+                <span>Total</span>
+                <span>₹{calculateTotal().toFixed(2)}</span>
+              </div>
+            </div>
+            <Button 
+              className="w-full bg-blue-900 hover:bg-green-500 text-primary-foreground"
+              size="lg"
+              onClick={handleCheckout} 
+            >
+              <CreditCard className="mr-2 h-5 w-5 text-white"/> Proceed to Payment
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    </div>
+  )
+}

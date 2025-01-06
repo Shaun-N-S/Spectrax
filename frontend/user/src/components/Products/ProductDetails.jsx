@@ -6,6 +6,8 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate, useParams } from 'react-router-dom';
 import axiosInstance from '@/axios/userAxios';
+import { useSelector } from 'react-redux';
+import {toast} from 'react-hot-toast'
 
 export default function ProductDetail() {
   const [productData, setProductData] = useState(null);
@@ -19,7 +21,16 @@ export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const userDetails = useSelector((state)=>state.user);
+  const getUserId = (userDetails)=>{
+    return userDetails?.user?._id || userDetails?.user?.id
+  }
+  const userId = getUserId(userDetails);
+
   useEffect(() => {
+
+    
+
     setLoading(true);
     setError(null);
   
@@ -76,6 +87,36 @@ export default function ProductDetail() {
       top: `${e.clientY - rect.top - 75}px`,
     });
   };
+
+
+
+  const handleCart = async (userId, productId, variantId) => {
+    console.log("suer ID  ....",userId)
+    try {
+      // Using selectedVariant._id instead of hardcoded first variant
+      await axiosInstance.post(
+        '/Cart',
+        { 
+          userId,
+          productId,
+          variantId: selectedVariant._id, // Use selected variant
+          quantity: 1
+        },
+        { withCredentials: true } 
+      );
+      
+      toast.success("Added to cart");
+      navigate('/cart');
+    } catch (error) {
+      console.error("Error in handle cart:", error);
+      toast.error("Product is out of stock");
+    }
+  };
+  
+
+
+
+
 
   const handleMouseLeave = () => {
     setZoomStyle({ display: 'none' });
@@ -174,7 +215,10 @@ export default function ProductDetail() {
                 {productData.description}
               </p>
               <p className="text-sm text-gray-400">
-                Available Stock: <span className="font-semibold text-white">{selectedVariant ? selectedVariant.availableQuantity : productData.availableQuantity}</span>
+              Available Stock :  
+              <span className={`font-semibold ${selectedVariant.availableQuantity > 0 ? 'text-white' : 'text-red-500'}`}>
+               {selectedVariant.availableQuantity > 0 ? selectedVariant.availableQuantity : "Out of Stock"}
+              </span>
               </p>
             </div>
 
@@ -203,7 +247,11 @@ export default function ProductDetail() {
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Button size="lg" className="w-full bg-blue-950 text-primary-foreground hover:bg-blue-950 transition-all duration-300 hover:scale-105">
+                <Button 
+                  size="lg" 
+                  className="w-full bg-blue-950 text-primary-foreground hover:bg-blue-950 transition-all duration-300 hover:scale-105"
+                  onClick={() => handleCart(userId, productData._id, selectedVariant._id)}
+                >
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Add to Cart
                 </Button>

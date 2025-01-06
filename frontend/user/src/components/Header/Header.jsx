@@ -33,6 +33,10 @@ export default function Header() {
     }
   };
 
+  const handleCart = () =>{
+    navigate('/cart')
+  }
+
   const handleLogout = () => {
     console.log('Logging out user...');
     axiosInstance.post('/logout')
@@ -122,7 +126,7 @@ export default function Header() {
                 <Heart className="h-5 w-5" />
                 <span className="sr-only">Wishlist</span>
               </Button>
-              <Button variant="ghost" size="icon" className="text-white">
+              <Button variant="ghost" size="icon" className="text-white" onClick={handleCart}>
                 <ShoppingCart className="h-5 w-5" />
                 <span className="sr-only">Cart</span>
               </Button>
