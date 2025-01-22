@@ -15,6 +15,10 @@ import OrderManagement from './components/OrderManagement/OrderManagment'
 // import { ToastContainer } from 'react-toastify';
 // import 'react-toastify/dist/ReactToastify.css';
 import { Toaster } from 'react-hot-toast';
+import CouponList from './components/Coupon/CouponList'
+import AddCoupon from './components/Coupon/AddCoupon'
+import AddOffer from './components/Offer/AddOffer'
+import OfferList from './components/Offer/OfferList'
 
 
 const App = () => (
@@ -32,6 +36,12 @@ const App = () => (
         <Route path='/orders' element={<AdminAuth><AdminSidebar><OrderManagement/></AdminSidebar></AdminAuth>}/>
         <Route path='/categories' element={<AdminAuth><AdminSidebar><CategoryManagement/></AdminSidebar></AdminAuth>}/>
         <Route path='/edit-product/:id' element={<AdminAuth><AdminSidebar><EditProduct/></AdminSidebar></AdminAuth>}/>
+        <Route path='/coupons' element={<AdminAuth><AdminSidebar><CouponList/></AdminSidebar></AdminAuth>}/>
+        <Route path='/Add/Coupon' element={<AdminAuth><AdminSidebar><AddCoupon/></AdminSidebar></AdminAuth>}/>
+        <Route path='/offers' element={<AdminAuth><AdminSidebar><OfferList/></AdminSidebar></AdminAuth>}/>
+        <Route path='/Add/Offers' element={<AdminAuth><AdminSidebar><AddOffer/></AdminSidebar></AdminAuth>}/>
+        <Route path="/edit/offer/:offerId" element={<AdminAuth><AdminSidebar><AddOffer /></AdminSidebar></AdminAuth>} />
+
       </Routes>
     </BrowserRouter>
   </div>

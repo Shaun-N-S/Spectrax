@@ -17,8 +17,13 @@ const categorySchema = new mongoose.Schema(
       enum: ['active', 'inactive'],
       default: 'active',
     },
+    offerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Offer',
+      required: false
+  }  
   },
-  { timestamps: true } // Automatically manage createdAt and updatedAt fields
+  { timestamps: true } 
 );
 
 module.exports = mongoose.model('Category', categorySchema);

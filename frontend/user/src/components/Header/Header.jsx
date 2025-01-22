@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import axiosInstance from "@/axios/userAxios";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
+import { useLocation } from "react-router-dom";
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -13,14 +14,15 @@ export default function Header() {
   const [user, setUser] = useState(null); // Simulate user state
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+  const location = useLocation();
    const userDetails = useSelector((state) => state.user);
    console.log("user Details  : ",userDetails)
 
 
 
-  const handleSearch = (e) => {
+   const handleSearch = (e) => {
     e.preventDefault();
-    console.log("Searching for:", searchQuery);
+    navigate(`/shop?search=${searchQuery}`);  
   };
 
   const handleUserAction = (path) => {
@@ -35,6 +37,10 @@ export default function Header() {
 
   const handleCart = () =>{
     navigate('/cart')
+  }
+
+  const handleWishlist = () =>{
+    navigate('/wishlist')
   }
 
   const handleLogout = () => {
@@ -122,7 +128,7 @@ export default function Header() {
             </form>
 
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="icon" className="text-white">
+              <Button variant="ghost" size="icon" className="text-white" onClick={handleWishlist} >
                 <Heart className="h-5 w-5" />
                 <span className="sr-only">Wishlist</span>
               </Button>

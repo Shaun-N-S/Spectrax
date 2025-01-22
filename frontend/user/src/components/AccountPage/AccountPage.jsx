@@ -14,9 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSelector } from 'react-redux'
 import axiosInstance from '@/axios/userAxios'
 import toast from 'react-hot-toast'
-import { Package, Pencil, Trash } from 'lucide-react';
+import { Package, Pencil, Trash, Wallet, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import OrderDetailsBox from './OrderDetailsBox'
-
 export default function AccountPage() {
   // State for user profile data
   const [profileData, setProfileData] = useState({
@@ -42,6 +41,7 @@ export default function AccountPage() {
   const [orderDetails, setOrderDetails] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isOrderDetailsOpen, setIsOrderDetailsOpen] = useState(false);
+  const [walletDetails,setWalletDetails] = useState([]);
 
 
   // Loading states
@@ -66,6 +66,10 @@ export default function AccountPage() {
     address: {},
     password: {}
   });
+
+  // const [walletBalance, setWalletBalance] = useState(0);
+  const [transactions, setTransactions] = useState([]);
+  const [topUpAmount, setTopUpAmount] = useState('');
 
 
   const validateProfile = () => {
@@ -211,14 +215,20 @@ export default function AccountPage() {
         }
 
         const orderData = await axiosInstance.get(`/fetch/orders/${userId}`)
-        
         if(!orderData){
           toast.error("error in fetching order details..")
         }
-
         setOrderDetails(orderData.data.orderDetails)
-       
         console.log(orderData.data.orderDetails)
+
+
+        const walletData = await axiosInstance.get(`/Wallet/${userId}`)
+        if(!walletData){
+          toast.error("Error in fetching wallet details.")
+        }
+        setWalletDetails(walletData.data.walletDetails);
+        console.log("Wallet details ..............",walletData.data.walletDetails)
+
 
   
       } catch (error) {
@@ -232,6 +242,7 @@ export default function AccountPage() {
     fetchUserData();
   }, [userDetails]);
   
+  console.log("wallet details from response ...............",walletDetails)
   console.log("order details ...... :",orderDetails)
   console.log(orderDetails?.products?.name)
 
@@ -490,6 +501,33 @@ const handleChangePassword = async () => {
 };
 
 
+// In AccountPage.jsx, add this function
+const updateOrderStatus = (orderId, newStatus) => {
+  setOrderDetails(prevOrders => 
+    prevOrders.map(order => 
+      order._id === orderId 
+        ? { ...order, orderStatus: newStatus }
+        : order
+    )
+  );
+};
+
+const handleTopUp = async () => {
+  try {
+    const userId = getUserId(userDetails);
+    const response = await axiosInstance.post(`/wallet/topup/${userId}`, {
+      amount: parseFloat(topUpAmount)
+    });
+    setWalletBalance(response.data.newBalance);
+    setTransactions(prevTransactions => [response.data.transaction, ...prevTransactions]);
+    setTopUpAmount('');
+    toast.success('Wallet topped up successfully');
+  } catch (error) {
+    console.error('Failed to top up wallet:', error);
+    toast.error('Failed to top up wallet');
+  }
+};
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -504,13 +542,15 @@ const handleChangePassword = async () => {
         <h1 className="text-3xl font-bold mb-8">My Account</h1>
         
         <Tabs defaultValue="profile" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-2 bg-gray-800">
+          <TabsList className="grid w-full grid-cols-4 bg-gray-800">
             <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="Address">Address</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
+            <TabsTrigger value="Wallet">Wallet</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
-            <Card className="bg-gray-800 border-gray-700">
+            <Card className="bg-gray-800 border-gray-700 text-white">
               <CardHeader>
                 <CardTitle>Profile Information</CardTitle>
                 <CardDescription>Update your account details here.</CardDescription>
@@ -640,18 +680,31 @@ const handleChangePassword = async () => {
                       setShowPasswordForm(false);
                       handleCancelPasswordChange();
                     }}
+                    className="text-black hover:bg-gray-300"
                   >
                     Cancel
                   </Button>
                       </div>
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
 
+          <TabsContent value="Address">
+            <Card className="bg-gray-800 border-gray-700 text-white ">
+              <CardHeader>
+                <CardTitle className='flex justify-center'>Address</CardTitle>
+                {/* <CardDescription></CardDescription> */}
+              </CardHeader>
+              <CardContent>
                   {/* Existing Addresses */}
+                  <div>
                   {Array.isArray(addresses?.address) && addresses.address.length > 0 && (
-  <div className="mt-6">
-    <h3 className="text-lg font-medium mb-4">Saved Addresses</h3>
+                  <div className="mt-6">
+                    <h3 className="text-lg font-medium mb-4">Saved Addresses</h3>
 
                     <div className="space-y-4">
                       {addresses.address.map((address, index) => (
@@ -686,26 +739,21 @@ const handleChangePassword = async () => {
                     </div>
                   </div>
                 )}
+                </div>
+
+                  <CardFooter className="flex justify-between items-center gap-4 px-0 mt-4">
+                   <Button 
+                     type="button"
+                     onClick={handleAddNewAddress}
+                     disabled={isSaving}
+                   >
+                     Add Address
+                   </Button>
+                 </CardFooter>
 
 
 
-                  <CardFooter className="flex justify-between items-center gap-4 px-0">
-                   
-                    <Button 
-                      type="button"
-                      onClick={handleAddNewAddress}
-                      disabled={isSaving}
-                    >
-                      Add Address
-                    </Button>
-                  </CardFooter>
-                  
-
-
-                  
-
-                  {/* Address Form */}
-                  {showAddressForm && (
+                    {showAddressForm && (
                     <div className="space-y-4 p-4 bg-gray-700 rounded-lg mt-4">
                       <div className="grid gap-2">
                       <Label>Address</Label>
@@ -783,81 +831,146 @@ const handleChangePassword = async () => {
                           variant="outline" 
                           onClick={handleCancelAddress}
                           disabled={isSaving}
+                          className='text-black hover:bg-gray-300'
                         >
                           Cancel
                         </Button>
                       </div>
                     </div>
                   )}
+
+                </CardContent>
+            </Card>
+          </TabsContent>
+  
+
+
+
+          <TabsContent value="orders">
+  <Card className="bg-gray-800 border-gray-700 text-white">
+    <CardHeader>
+      <CardTitle>Order History</CardTitle>
+      <CardDescription>View your past orders and their status.</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <div className="space-y-4">
+        {orderDetails.map((order) => (
+          <div
+            key={order._id}
+            className="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
+          >
+            <div className="flex items-center space-x-4">
+              <Package className="w-6 h-6" />
+              <div>
+                {order.products.map((product) => (
+                  <div key={product._id} className="space-y-1">
+                    <p className="font-medium">Product: {product.name}</p>
+                    <p className="font-medium">Quantity: {product.quantity || 1}</p>
+                    <p className="font-medium">
+                      Final Price: ₹{(product.price * (product.quantity || 1))}
+                    </p>
+                    <span className="font-medium">Status: </span>
+                    <span 
+                      className={`
+                        font-medium 
+                        ${
+                          order.orderStatus === 'Processing' ? 'text-yellow-400' :
+                          order.orderStatus === 'Shipped' ? 'text-blue-500' :
+                          order.orderStatus === 'Delivered' ? 'text-green-500' :
+                          order.orderStatus === 'Cancelled' ? 'text-red-500' : 
+                          'text-amber-500'
+                        }`}
+                    >
+                      {order.orderStatus}
+                    </span>
+                  </div>
+                ))}
+                <p className="text-sm text-gray-400">
+                  Placed on: {new Date(order.orderDate).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                setSelectedOrder(order);
+                setIsOrderDetailsOpen(true);
+              }}
+              className='text-black hover:bg-gray-300'
+            >
+              View Details
+            </Button>
+          </div>
+        ))}
+      </div>
+    </CardContent>
+  </Card>
+</TabsContent>
+
+<TabsContent value="Wallet">
+            <Card className="bg-gray-800 border-gray-700 text-white">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Wallet className="mr-2" />
+                  My Wallet
+                </CardTitle>
+                <CardDescription>Manage your wallet balance and view transactions.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="bg-gray-700 p-4 rounded-lg">
+                    <h3 className="text-xl font-semibold mb-2">Current Balance</h3>
+                    <p className="text-3xl font-bold text-green-400">₹{walletDetails.balance.toFixed(2)}</p>
+                  </div>
+                  {/* <div className="space-y-4">
+                    <h3 className="text-xl font-semibold">Top Up Wallet</h3>
+                    <div className="flex space-x-2">
+                      <Input
+                        type="number"
+                        placeholder="Enter amount"
+                        value={topUpAmount}
+                        onChange={(e) => setTopUpAmount(e.target.value)}
+                        className="bg-gray-700"
+                      />
+                      <Button onClick={handleTopUp}>Top Up</Button>
+                    </div>
+                  </div> */}
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-semibold">Recent Transactions</h3>
+                    <div className="space-y-2">
+                      {walletDetails.transactions.map((transaction) => (
+                        <div key={transaction._id} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                          <div className="flex items-center">
+                            {transaction.type === 'refund' ? (
+                              <ArrowUpRight className="text-green-400 mr-2" />
+                            ) : (
+                              <ArrowDownLeft className="text-red-400 mr-2" />
+                            )}
+                            <div>
+                              <p className="font-medium">{transaction.description || transaction.type}</p>
+                              <p className="text-sm text-gray-400">{new Date(transaction.date).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <p className={`font-bold ${transaction.type === 'refund' ? 'text-green-400' : 'text-red-400'}`}>
+                            {transaction.type === 'refund' ? '+' : '-'}₹{transaction.amount.toFixed(2)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="orders">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle>Order History</CardTitle>
-                <CardDescription>View your past orders and their status.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                  <div className="space-y-4">
-                    {orderDetails.map((order) => (
-                      <div
-                        key={order._id}
-                        className="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <Package className="w-6 h-6" />
-                          <div>
-                            {/* <p className="font-medium">Order ID: {order._id}</p> */}
-                            {order.products.map((product) => (
-                              <div key={product._id} className="space-y-1">
-                                <p className="font-medium">Product: {product.name }</p>
-                                <p className="font-medium">Price:  ₹{product.price}</p>
-                                <span className="font-medium">Status : </span>
-                                <span 
-                                  className={`
-                                    font-medium 
-                                    ${
-                                      order.orderStatus === 'Processing' ? 'text-yellow-400' :
-                                      order.orderStatus === 'Shipped' ? 'text-blue-500' :
-                                      order.orderStatus === 'Delivered' ? 'text-green-500' :
-                                      order.orderStatus === 'Cancelled' ? 'text-red-500' : 
-                                      'text-gray-500'
-                                    }`}
-                                >
-                                  {order.orderStatus}
-                                </span>
-                              </div>
-                            ))}
-                            <p className="text-sm text-gray-400">
-                              Placed on: {new Date(order.orderDate).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setIsOrderDetailsOpen(true);
-                          }}
-                        >
-                          View Details
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
       <OrderDetailsBox
   order={selectedOrder}
   open={isOrderDetailsOpen}
   onOpenChange={setIsOrderDetailsOpen}
+  onStatusUpdate={updateOrderStatus}
 />
     </div>
   )

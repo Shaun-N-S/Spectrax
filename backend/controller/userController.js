@@ -132,7 +132,7 @@ const verifyOtp = async (req, res) => {
 
             // Clear session data
             req.session.userOtp = null;
-            req.session.userData = null;
+            // req.session.userData = null;
 
             console.log("User verified successfully and registered");
             return res.status(201).json({ message: 'User registered successfully', user });
@@ -259,6 +259,10 @@ const login = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ message: 'Invalid email or password' });
+    }
+
+    if(user.role !== 'user'){
+      return res.status(400).json({message:'Check your role'})
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -430,25 +434,28 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-const forgotPasswordVerifyOtp = async (req,res)=>{
+const forgotPasswordVerifyOtp = async (req, res) => {
   try {
-    const {otp} = req.body;
-    console.log("Entered otp :",otp);
-    console.log("session otp :",req.session.userOtp);
+    const { otp } = req.body;
+    console.log("Entered otp:", otp);
+    console.log("session otp:", req.session.userOtp);
 
-    if(!otp){
-      return res.status(400).json({message:'Please enter otp'});
+    if (!otp) {
+      return res.status(400).json({ message: 'Please enter otp' });
     }
 
-    if(req.session.userOtp === otp){
-      return res.status(200).json({message:"otp verified successfully"})
+    if (otp !== req.session.userOtp) {
+      return res.status(400).json({ message: "Invalid Otp" });
     }
+
+    // No need for the third condition since we already checked equality above
+    return res.status(200).json({ message: "otp verified successfully" });
+    
   } catch (error) {
-    console.log('Error in verifying forgot password otp:',error);
-    return res.status(500).json({message:"Interna server error"});
+    console.log('Error in verifying forgot password otp:', error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-}
-
+};
 
 
 const resetPassword = async (req, res) => {

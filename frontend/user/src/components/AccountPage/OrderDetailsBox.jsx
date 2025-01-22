@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,62 +6,94 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Package, Truck, CreditCard, Calendar, X } from 'lucide-react';
-import { Button } from '../ui/button';
+import { Package, Truck, CreditCard, Calendar, Tag } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import axiosInstance from '@/axios/userAxios';
+import { toast } from 'react-hot-toast';
 
-const OrderDetailsBox = ({ order, open, onOpenChange }) => {
+const OrderDetailsBox = ({ order, open, onOpenChange, onStatusUpdate }) => {
   if (!order) return null;
 
-  const [productDetails,setProductDetails] = useState([])
-
-  useEffect(()=>{
- 
-    fetchProductDetails()
-  },[order])
-
-  const fetchProductDetails = async () => {
-    try {
-      // Assuming we need to fetch details for each product in the order
-      const productPromises = order.products.map(product => 
-        axiosInstance.get(`/showProductsById/${product.productId}`)
-      );
-      
-      const responses = await Promise.all(productPromises);
-      const details = responses.map(response => response.data);
-      setProductDetails(details);
-    } catch (error) {
-      console.log("error fetching product details:", error);
-    }
-  };
-
-
   const handleCancelOrder = async () => {
+    if (order.orderStatus === 'Shipped' || order.orderStatus === 'Delivered') {
+      toast.error('Orders that are shipped or delivered cannot be cancelled');
+      return;
+    }
+  
     try {
       const response = await axiosInstance.post(
         `/update/order-status/${order._id}`,
-        {
-          status: 'Cancelled',
-          role: 'user'
-        }
+        { status: 'Cancelled' }
       );
-      
-      if (response.data.updatedOrder) {
-        onOpenChange(false);
+  
+      if (response.data.wallet) {
+        const refundAmount = response.data.wallet.lastTransaction.amount;
+        toast.success(`Order cancelled and ₹${refundAmount.toFixed(2)} refunded to wallet`);
+      } else {
+        toast.success('Order cancelled successfully');
       }
+      onStatusUpdate(order._id, 'Cancelled');
+      onOpenChange(false);
     } catch (error) {
       console.error("Error in cancelling order:", error);
+      toast.error(error.response?.data?.message || 'Failed to cancel order');
     }
   };
+  
 
-  console.log("response from order :",productDetails)
+  
+  const handleReturnOrder = async () => {
+    if (order.orderStatus !== 'Delivered') {
+      toast.error('Only delivered orders can be returned');
+      return;
+    }
+  
+    try {
+      const response = await axiosInstance.post(
+        `/update/order-status/${order._id}`,
+        { status: 'Returned' }
+      );
+  
+      if (response.data.wallet) {
+        const refundAmount = response.data.wallet.lastTransaction.amount;
+        toast.success(`Return processed and ₹${refundAmount.toFixed(2)} refunded to wallet`);
+      } else {
+        toast.success('Return processed successfully');
+      }
+      onStatusUpdate(order._id, 'Returned');
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error in returning order:", error);
+      toast.error(error.response?.data?.message || 'Failed to process return');
+    }
+  };
+  
+
+  // Helper function to safely display variant details
+  const renderVariantValue = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') {
+      // If the value is an object with name or value property
+      return value.name || value.value || JSON.stringify(value);
+    }
+    return String(value);
+  };
+
+  // Calculate the subtotal
+  const subtotal = order.totalAmount || 0;
+  
+  // Calculate the discount amount if coupon exists
+  const discountAmount = order.coupon?.discountAmount || 0;
+  
+  // Calculate   amount
+  const finalAmount = order.finalAmount || order.totalAmount || 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-gray-800 text-white max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="relative">
-          <DialogClose className="absolute right-4 top-4">
-          </DialogClose>
+          <DialogClose className="absolute right-4 top-4" />
           <DialogTitle className="text-2xl font-bold">
             <div className="flex items-center space-x-2">
               <Package className="w-6 h-6" />
@@ -82,35 +114,42 @@ const OrderDetailsBox = ({ order, open, onOpenChange }) => {
               Products
             </h3>
             <div className="grid gap-4">
-              {order.products.map((product) => (
+              {order.products.map((product, index) => (
                 <div 
-                  key={product._id} 
+                  key={index}
                   className="bg-gray-600 p-4 rounded-lg flex justify-between items-center"
                 >
+                  <div className="flex-1">
                   <div>
-                    <div>
-                    <h4 className="font-medium text-white">{product.name}</h4>
-                    {product.variant && (
-                          <div className="text-sm text-gray-300">
-                            {Object.entries(product.variant).map(([key, value]) => (
-                              <p key={key} className="capitalize">
-                                {key}: {value}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                        </div>
-                    <p className="text-sm text-gray-300 mt-1">Quantity: {product.quantity || 1}</p>
+                    <h4 className="font-medium text-white">{product.name || 'Product Name'}</h4>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium text-white">₹{product.price}</p>
+                    <p className="text-sm text-gray-300 mt-1">
+                      Quantity: {product.quantity || 1}
+                    </p>
+                    <p className="text-sm text-gray-300">
+                      Price: ₹{product.price || 0}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
+          {/* Coupon Section */}
+          {order.coupon && (
+            <div className="bg-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Tag className="w-5 h-5" />
+                Applied Coupon
+              </h3>
+              <div className="space-y-2">
+                <p className="text-gray-300">Coupon Code: {order.coupon.code}</p>
+                <p className="text-gray-300">Discount Amount: ₹{order.coupon.discountAmount}</p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Shipping Details */}
             <div className="bg-gray-700 rounded-lg p-4">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Truck className="w-5 h-5" />
@@ -124,6 +163,7 @@ const OrderDetailsBox = ({ order, open, onOpenChange }) => {
               </div>
             </div>
 
+            {/* Payment Details */}
             <div className="bg-gray-700 rounded-lg p-4">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <CreditCard className="w-5 h-5" />
@@ -132,16 +172,13 @@ const OrderDetailsBox = ({ order, open, onOpenChange }) => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300">Status</span>
-                  <span 
-                    className={`
-                      font-medium 
-                      ${
-                        order.orderStatus === 'Processing' ? 'text-yellow-500' :
-                        order.orderStatus === 'Shipped' ? 'text-blue-500' :
-                        order.orderStatus === 'Delivered' ? 'text-green-500' :
-                        order.orderStatus === 'Cancelled' ? 'text-red-500' : 
-                        'text-gray-500'
-                    }`}>
+                  <span className={`font-medium ${
+                    order.orderStatus === 'Processing' ? 'text-yellow-500' :
+                    order.orderStatus === 'Shipped' ? 'text-blue-500' :
+                    order.orderStatus === 'Delivered' ? 'text-green-500' :
+                    order.orderStatus === 'Cancelled' ? 'text-red-500' : 
+                    'text-gray-500'
+                  }`}>
                     {order.orderStatus}
                   </span>
                 </div>
@@ -149,23 +186,51 @@ const OrderDetailsBox = ({ order, open, onOpenChange }) => {
                   <span className="text-gray-300">Payment Method</span>
                   <span className="font-medium">{order.paymentMethod}</span>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Subtotal</span>
+                  <span className="font-medium">₹{subtotal}</span>
+                </div>
+                {order.coupon && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Discount</span>
+                    <span className="font-medium text-green-500">
+                      -₹{discountAmount}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pt-2 border-t border-gray-600">
-                  <span className="text-gray-300">Total Amount</span>
-                  <span className="font-medium text-lg">₹{order.totalAmount}</span>
+                  <span className="text-gray-300">Final Amount</span>
+                  <span className="font-medium text-lg">₹{finalAmount}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-center pt-6">
-          <Button 
-            className="text-red-600 flex w-40" 
-            onClick={handleCancelOrder}
-          >
-            Cancel Order
-          </Button>
-        </div>
+        <div className="flex justify-center gap-4 pt-6">
+        {order.orderStatus !== 'Cancelled' && order.orderStatus !== 'Returned' && (
+          <>
+            {order.orderStatus !== 'Shipped' && order.orderStatus !== 'Delivered' && (
+              <Button 
+                variant="destructive"
+                className="w-40" 
+                onClick={handleCancelOrder}
+              >
+                Cancel Order
+              </Button>
+            )}
+            {order.orderStatus === 'Delivered' && (
+              <Button 
+                variant="destructive"
+                className="w-40" 
+                onClick={handleReturnOrder}
+              >
+                Return Order
+              </Button>
+            )}
+          </>
+        )}
+      </div>
       </DialogContent>
     </Dialog>
   );

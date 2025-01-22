@@ -8,6 +8,8 @@ import {
   FaList,
   FaIndustry,
   FaSignOutAlt,
+  FaTicketAlt,
+  FaTags,
 } from 'react-icons/fa';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button'; // Adjust the path if necessary
@@ -26,6 +28,8 @@ const AdminSidebar = ({children}) => {
     { icon: FaUsers, text: 'Customers', href: '/customerlist' },
     { icon: FaList, text: 'Categories', href: '/categories' },
     { icon: FaIndustry, text: 'Brands', href: '/brands' },
+    {icon: FaTicketAlt, text:'Coupon', href: '/coupons'},
+    {icon: FaTags, text:'Offer', href:'/offers'}
   ];
 
   const navigate = useNavigate();
@@ -116,7 +120,7 @@ const AdminSidebar = ({children}) => {
               variant="outline"
               className="w-full flex items-center justify-center space-x-2 py-3 text-red-500 border-red-500 hover:bg-red-500 hover:text-white transition-all duration-200"
             >
-              <FaSignOutAlt className="w-5 h-5" />
+              <FaSignOutAlt className="w-5 h-5 mt-4" />
               <span onClick={handleLogout}>LOGOUT</span>
             </Button>
           </div>

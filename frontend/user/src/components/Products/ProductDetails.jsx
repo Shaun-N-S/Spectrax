@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axiosInstance from '@/axios/userAxios';
 import { useSelector } from 'react-redux';
 import {toast} from 'react-hot-toast'
+import PriceDisplay from '@/components/PriceDisplay/PriceDisplay';
 
 export default function ProductDetail() {
   const [productData, setProductData] = useState(null);
@@ -18,42 +19,140 @@ export default function ProductDetail() {
   const [brand, setBrand] = useState('');
   const [zoomStyle, setZoomStyle] = useState({ display: 'none' });
   const [selectedVariant, setSelectedVariant] = useState(null);
-  const { id } = useParams();
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [offerData, setOfferData] = useState(null);
+  const [productOffer, setProductOffer] = useState(null);
+  const [categoryOffer, setCategoryOffer] = useState(null);
+  const [bestDiscount, setBestDiscount] = useState({
+    discountedPrice: 0,
+    originalPrice: 0,
+    savings: 0,
+    discountPercent: 0
+  });
   const navigate = useNavigate();
 
-  const userDetails = useSelector((state)=>state.user);
-  const getUserId = (userDetails)=>{
-    return userDetails?.user?._id || userDetails?.user?.id
-  }
+  const userDetails = useSelector((state) => state.user);
+  const getUserId = (userDetails) => {
+    return userDetails?.user?._id || userDetails?.user?.id;
+  };
   const userId = getUserId(userDetails);
+  const { id } = useParams();
 
   useEffect(() => {
+    fetchData();
+  }, []);
 
-    
-
-    setLoading(true);
-    setError(null);
   
-    axiosInstance
-      .get(`/showProductsById/${id}`)
-      .then((productResponse) => {
-        const product = productResponse.data.product;
-        setProductData(product);
-        setSelectedVariant(product.variants[0]);
-        fetchRelatedProducts(product.categoryId);
-        return axiosInstance.get(`/showBrandbyId/${product.brandId}`);
-      })
-      .then((brandResponse) => {
-        setBrand(brandResponse.data.brand);
-      })
-      .catch((error) => {
-        console.error('Error fetching data:', error);
-        setError('Error fetching product or brand');
-      })
-      .finally(() => {
+
+  const fetchData = async () => {
+    try {
+      // Fetch product data
+      const productResponse = await axiosInstance.get(`/showProductsById/${id}`);
+      const product = productResponse.data.product;
+      
+      if (!product) {
+        setError('Product not found');
         setLoading(false);
-      });
-  }, [id]);
+        return;
+      }
+
+      setProductData(product);
+      
+      // Safely set initial variant
+      if (product.variants && product.variants.length > 0) {
+        setSelectedVariant(product.variants[0]);
+      }
+      
+      // Fetch brand data
+      try {
+        const brandResponse = await axiosInstance.get(`/showBrandbyId/${product.brandId}`);
+        setBrand(brandResponse.data.brand);
+      } catch (error) {
+        console.error("Error fetching brand:", error);
+      }
+
+      // Fetch product offer if exists
+      let productOfferData = null;
+      if (product.offerId) {
+        try {
+          const productOfferResponse = await axiosInstance.get(`/Offer/fetch/${product.offerId}`);
+          productOfferData = productOfferResponse.data.offerData;
+          setProductOffer(productOfferData);
+        } catch (error) {
+          console.error("Error fetching product offer:", error);
+        }
+      }
+
+      // Fetch category offer if exists
+      let categoryOfferData = null;
+      if (product.categoryId) {
+        try {
+          const categoryOfferResponse = await axiosInstance.get(`/Offer/category/${product.categoryId}`);
+          categoryOfferData = categoryOfferResponse.data.offerData;
+          setCategoryOffer(categoryOfferData);
+        } catch (error) {
+          console.error("Error fetching category offer:", error);
+        }
+      }
+
+      // Calculate best discount only if we have a valid variant
+      if (product.variants && product.variants.length > 0) {
+        calculateBestDiscount(product.variants[0].price, productOfferData, categoryOfferData);
+      }
+
+      // Fetch related products if category exists
+      if (product.categoryId) {
+        fetchRelatedProducts(product.categoryId);
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setError('Error fetching product data');
+      setLoading(false);
+    }
+  };
+
+  const calculateBestDiscount = (originalPrice, productOffer, categoryOffer) => {
+    let bestDiscountPercent = 0;
+    const currentDate = new Date();
+
+    // Check product offer
+    if (productOffer && 
+        productOffer.isActive && 
+        new Date(productOffer.startDate) <= currentDate && 
+        new Date(productOffer.endDate) >= currentDate) {
+      bestDiscountPercent = Math.max(bestDiscountPercent, productOffer.discountPercent);
+    }
+
+    // Check category offer
+    if (categoryOffer && 
+        categoryOffer.isActive && 
+        new Date(categoryOffer.startDate) <= currentDate && 
+        new Date(categoryOffer.endDate) >= currentDate) {
+      bestDiscountPercent = Math.max(bestDiscountPercent, categoryOffer.discountPercent);
+    }
+
+    const discountedPrice = originalPrice - (originalPrice * (bestDiscountPercent / 100));
+    const savings = originalPrice - discountedPrice;
+
+    setBestDiscount({
+      discountedPrice: discountedPrice,
+      originalPrice: originalPrice,
+      savings: savings,
+      discountPercent: bestDiscountPercent
+    });
+  };
+
+  // Update discount calculation when variant changes
+  useEffect(() => {
+    if (selectedVariant && (productOffer || categoryOffer)) {
+      calculateBestDiscount(selectedVariant.price, productOffer, categoryOffer);
+    }
+  }, [selectedVariant, productOffer, categoryOffer]);
+  
+
+  console.log("offer ID .............................................",productData?.offerId)
 
   const fetchRelatedProducts = (category) => {
     axiosInstance
@@ -113,6 +212,32 @@ export default function ProductDetail() {
     }
   };
   
+
+  const handleWishlist = async () => {
+    if (!userId) {
+      toast.error("Please login to add items to wishlist");
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const response = await axiosInstance.post('/add/wishlist', {
+        userId,
+        productId: id,
+        variantId: selectedVariant._id,
+      });
+
+      if (response.data.success) {
+        setIsInWishlist(true);
+        toast.success("Added to wishlist");
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.error("Wishlist error:", error);
+      toast.error(error.response?.data?.message || "Error adding to wishlist");
+    }
+  };
 
 
 
@@ -200,17 +325,11 @@ export default function ProductDetail() {
           <div className="space-y-8">
             <div className="space-y-4">
               <h1 className="text-4xl font-bold tracking-tight text-white">{productData.title}</h1>
-              <div className="flex items-baseline gap-4">
-                <span className="text-3xl font-bold text-white">
-                  ₹{selectedVariant ? selectedVariant.price.toFixed(2) : productData.price.toFixed(2)}
-                </span>
-                <span className="text-lg text-red-400 line-through ">
-                  ₹{((selectedVariant ? selectedVariant.price : productData.price) + 3000).toFixed(2)}
-                </span>
-                <Badge variant="secondary" className="ml-2 bg-green-400">
-                  Save ₹3000
-                </Badge>
-              </div>
+              <PriceDisplay 
+  originalPrice={selectedVariant ? selectedVariant.price : productData.price}
+  productOffer={productOffer}
+  categoryOffer={categoryOffer}
+/>
               <p className="text-lg text-gray-300 leading-relaxed">
                 {productData.description}
               </p>
@@ -255,10 +374,15 @@ export default function ProductDetail() {
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Add to Cart
                 </Button>
-                <Button size="lg" variant="outline" className="w-full border-primary text-primary hover: transition-all duration-300 hover:scale-105">
-                  <Heart className="w-4 h-4 mr-2" />
-                  Wishlist
-                </Button>
+                <Button 
+    size="lg" 
+    variant="outline" 
+    className={`w-full border-primary text-primary hover:bg-primary/10 transition-all duration-300 hover:scale-105`}
+    onClick={handleWishlist}
+  >
+    <Heart className={`w-4 h-4 mr-2 ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
+    Wishlist
+  </Button>
               </div>
               <Button size="lg" className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-all duration-300 hover:scale-100 hover:bg-green-400">
                 Buy Now

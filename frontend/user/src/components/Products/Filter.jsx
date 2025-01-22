@@ -62,8 +62,8 @@ const FilterComponent = ({ isOpen, setIsOpen, setProducts }) => {
           sortBy: selectedSort,
           brands: selectedBrands,
           categories: selectedCategories,
-          minPrice: priceRange[0],
-          maxPrice: priceRange[1],
+          // minPrice: priceRange[0],
+          // maxPrice: priceRange[1],
         },
       });
       setProducts(response.data)
@@ -138,7 +138,7 @@ const FilterComponent = ({ isOpen, setIsOpen, setProducts }) => {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <Label className="text-green-400 font-medium">Price Range</Label>
                   <Slider
                     min={0}
@@ -152,7 +152,7 @@ const FilterComponent = ({ isOpen, setIsOpen, setProducts }) => {
                     <span>₹{priceRange[0]}</span>
                     <span>₹{priceRange[1]}</span>
                   </div>
-                </div>
+                </div> */}
 
                 <div className="space-y-2">
                   <Label className="text-green-400 font-medium">Brand</Label>

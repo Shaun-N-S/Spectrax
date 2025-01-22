@@ -109,7 +109,7 @@ export default function OrderSuccessful() {
   return (
     <div className="min-h-screen bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-800 border-gray-700 text-white">
           <CardHeader>
             <div className="flex items-center justify-center mb-4">
               <CheckCircle className="w-16 h-16 text-green-500" />
@@ -123,7 +123,9 @@ export default function OrderSuccessful() {
             <div className="bg-gray-700 p-4 rounded-lg">
               <h3 className="text-xl font-semibold mb-2">Order Details</h3>
               <p><strong>Order ID:</strong> {orderDetails._id || orderDetails.orderId}</p>
+              <p><strong>Applied coupon :</strong>{orderDetails.coupon?.code || 'Nill'}</p>
               <p><strong>Total Amount:</strong> ₹{orderDetails.totalAmount?.toFixed(2)}</p>
+              <p><strong>Paid Amount : </strong>₹{orderDetails.finalAmount?.toFixed(2)}</p>
               <p><strong>Order Date:</strong> {new Date(orderDetails.createdAt || orderDetails.orderDate).toLocaleString()}</p>
             </div>
             <div className="bg-gray-700 p-4 rounded-lg">
@@ -150,12 +152,12 @@ export default function OrderSuccessful() {
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <div className="flex items-center justify-center space-x-4 w-full">
-              <Button variant="outline" className="flex items-center" onClick={handleOrderHistory} >
-                <Truck className="mr-2 h-4 w-4" />
+              <Button variant="outline" className="flex items-center  text-black hover:bg-gray-400" onClick={handleOrderHistory} >
+                <Truck className="mr-2 h-4 w-4  text-black hover:bg-gray-400" />
                 Track Order
               </Button>
-              <Button variant="outline" className="flex items-center" onClick={handleOrderHistory}>
-                <ShoppingBag className="mr-2 h-4 w-4" />
+              <Button variant="outline" className="flex items-center  text-black hover:bg-gray-400" onClick={handleOrderHistory}>
+                <ShoppingBag className="mr-2 h-4 w-4 text-black hover:bg-gray-400" />
                 View Order History
               </Button>
             </div>

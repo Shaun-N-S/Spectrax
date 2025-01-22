@@ -21,6 +21,7 @@ import CartPage from './components/Cart/CartPage'
 import Filter from './components/Products/Filter'
 import CheckoutPage from './components/CheckoutPage/CheckoutPage'
 import OrderSuccessful from './components/CheckoutPage/OrderSuccessfull'
+import WishlistPage from './components/Wishlist/WishlistPage'
 
 const App = () => {
   return (
@@ -45,6 +46,7 @@ const App = () => {
       <Route path='/filter' element={<ProtectedComponent><Filter/></ProtectedComponent>}/>
       <Route path='/checkout' element={<ProtectedComponent><CheckoutPage/></ProtectedComponent>} />
       <Route path='/orderSuccessful/:id' element={<ProtectedComponent><OrderSuccessful/></ProtectedComponent>}/>
+      <Route path='/wishlist' element ={<ProtectedComponent><WishlistPage/></ProtectedComponent>}/>
       </Routes>
     <Footer/>
     </BrowserRouter>

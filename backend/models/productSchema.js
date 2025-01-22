@@ -17,15 +17,15 @@ const productSchema = new mongoose.Schema({
     },
     color: {
         type: String,
-        required: false, // Optional, based on product type (e.g., not required for all products)
+        required: false, 
     },
-    availableQuantity: {
-        type: Number,
-        required: true
-    },
+    // availableQuantity: {
+    //     type: Number,
+    //     required: true
+    // },
     description: {
         type: String,
-        required: false, // Optional for products like accessories with no description
+        required: false, 
     },
     productImage: {
         type: [String],
@@ -45,6 +45,11 @@ const productSchema = new mongoose.Schema({
         ref: 'Brand',
         required: true
     },
+    offerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Offer',
+        required: false
+    },    
     variants: [
         {
             attributes: [
@@ -58,17 +63,17 @@ const productSchema = new mongoose.Schema({
                 required: true,
             },
             price: {
-                type: Number, // Optional if you want variant-specific price
+                type: Number,
             },
             availableQuantity: {
-                type: Number, // Optional if you want variant-specific quantity
+                type: Number,
             },
         },
     ],
     specifications: {
         type: Map,
-        of: mongoose.Schema.Types.Mixed, // Supports any data type like string, number, array, etc.
-        required: false, // Made optional for products that may not have specifications
+        of: mongoose.Schema.Types.Mixed, 
+        required: false, 
     },
 }, { timestamps: true });
 

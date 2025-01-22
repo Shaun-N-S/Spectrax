@@ -34,55 +34,57 @@ export default function CartPage() {
     const fetchCartData = async () => {
       try {
         setLoading(true);
-  
-        // Fetch cart details
+    
         const cartResponse = await axiosInstance.post('/cart/details', { userId });
-        console.log(cartResponse);
-  
+    
         if (!cartResponse.data?.data?.items?.length) {
           setCartItems([]);
           return;
         }
-  
-        // Fetch product details and ensure only 'active' products are included
+    
         const itemsWithDetails = await Promise.all(
           cartResponse.data.data.items.map(async (item) => {
             try {
-              // Fetch product details by ID
               const productResponse = await axiosInstance.get(`/showProductsById/${item.productId}`);
               const product = productResponse.data.product;
-              
-              console.log(product);
-  
-              // Ensure product exists and is active
-              if (!product || product.status !== 'active') {
-                return null; // Skip inactive or non-existing products
-              }
-  
-              // Find the selected variant
+    
+              // Fetch offer details
+              const offerDetails = await axiosInstance.get(`/Offer/fetch/${product.offerId}`);
+              const categoryOfferDetails = await axiosInstance.get(`/Offer/category/${product.categoryId}`);
+    
+              // Get the discount percentages
+              const productOffer = offerDetails.data.offerData?.discountPercent || 0;
+              const categoryOffer = categoryOfferDetails.data.offerData?.discountPercent || 0;
+    
+              // Determine the best discount
+              const bestDiscount = Math.max(productOffer, categoryOffer);
+    
+              // Calculate the discounted price
               const selectedVariant = product.variants.find(v => v._id === item.variantId);
-  
+              const originalPrice = selectedVariant ? selectedVariant.price : product.price;
+              const discountedPrice = originalPrice - (originalPrice * (bestDiscount / 100));
+    
               return {
                 id: item._id,
                 productId: item.productId,
                 variantId: item.variantId,
                 name: product.title,
                 variant: selectedVariant,
-                price: selectedVariant ? selectedVariant.price : product.price,
+                originalPrice: originalPrice,
+                discountedPrice: discountedPrice,
+                discountPercent: bestDiscount,
                 quantity: item.quantity,
                 image: product.productImage?.[0] || "/placeholder.svg?height=100&width=100"
               };
             } catch (error) {
               console.log(`Failed to fetch product ${item.productId}:`, error);
-              return null; // Skip products that fail to load
+              return null;
             }
           })
         );
-  
-        // Filter out null values (inactive or failed to load products)
+    
         const activeItems = itemsWithDetails.filter(item => item !== null);
         setCartItems(activeItems);
-  
       } catch (err) {
         console.error('Cart fetch error:', err);
         setError(err.message || 'Failed to fetch cart items');
@@ -90,7 +92,7 @@ export default function CartPage() {
         setLoading(false);
       }
     };
-  
+    
     if (userId) {
       fetchCartData();
     }
@@ -161,17 +163,13 @@ export default function CartPage() {
   
 
   const calculateSubtotal = () => {
-    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
-  }
-
-  // const calculateDiscount = () => {
-  //   return calculateSubtotal() * 0.05
-  // }
-
+    return cartItems.reduce((total, item) => total + item.discountedPrice * item.quantity, 0);
+  };
+  
   const calculateTotal = () => {
-    return calculateSubtotal() //- calculateDiscount()
-  }
-
+    return calculateSubtotal(); // Add taxes or shipping fees here if needed
+  };
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -230,7 +228,10 @@ export default function CartPage() {
                         </div>
                       </>
                     )}
-                    <p className="text-gray-400 mt-1">₹{item.price.toFixed(2)}</p>
+                    {/* <p className="text-gray-400 mt-1">₹{item.price.toFixed(2)}</p> */}
+                    <p className="text-gray-400 mt-1 line-through">Original Price: ₹{item.originalPrice.toFixed(2)}</p>
+    <p className="text-gray-400 mt-1">Discount: {item.discountPercent}%</p>
+    <p className="text-white mt-1">Price: ₹{item.discountedPrice.toFixed(2)}</p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button 

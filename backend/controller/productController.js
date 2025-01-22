@@ -1,5 +1,5 @@
 const Product = require("../models/productSchema");
-
+const Order = require("../models/orderSchema")
 
 
 
@@ -244,6 +244,22 @@ const filteredProduct = async (req, res) => {
   }
 };
 
+const searchProducts = async (req, res) => {
+  const { query } = req.query;
+
+  try {
+    const searchFilter = query
+      ? { title: { $regex: query, $options: 'i' }, status: "active" }
+      : { status: "active" }; // Fetch all active products if no query
+
+    const searchResults = await Product.find(searchFilter);
+    return res.json({ data: searchResults });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error searching products', error });
+  }
+};
+
+
 
 
 
@@ -259,6 +275,7 @@ module.exports = {
     toggleProductStatus,
     showProductsIsActive,
     filteredProduct,
+    searchProducts,
 
 
 }
