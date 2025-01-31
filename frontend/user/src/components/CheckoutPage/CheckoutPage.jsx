@@ -93,18 +93,37 @@ const CheckoutPage = () => {
       const itemsWithDetails = await Promise.all(
         cartResponse.data.data.items.map(async (item) => {
           try {
+            // Fetch product details
             const productResponse = await axiosInstance.get(`/showProductsById/${item.productId}`);
             const product = productResponse.data.product;
   
-            const offerDetails = await axiosInstance.get(`/Offer/fetch/${product.offerId}`);
-            const categoryOfferDetails = await axiosInstance.get(`/Offer/category/${product.categoryId}`);
+            // Only fetch offer details if offerId exists
+            let productOffer = 0;
+            let categoryOffer = 0;
   
-            const productOffer = offerDetails.data.offerData?.discountPercent || 0;
-            const categoryOffer = categoryOfferDetails.data.offerData?.discountPercent || 0;
+            if (product.offerId) {
+              try {
+                const offerDetails = await axiosInstance.get(`/Offer/fetch/${product.offerId}`);
+                productOffer = offerDetails.data.offerData?.discountPercent || 0;
+              } catch (error) {
+                console.log('No product offer found:', error);
+              }
+            }
+  
+            if (product.categoryId) {
+              try {
+                const categoryOfferDetails = await axiosInstance.get(`/Offer/category/${product.categoryId}`);
+                categoryOffer = categoryOfferDetails.data.offerData?.discountPercent || 0;
+              } catch (error) {
+                console.log('No category offer found:', error);
+              }
+            }
+  
             const bestDiscount = Math.max(productOffer, categoryOffer);
-  
             const selectedVariant = product.variants.find(v => v._id === item.variantId);
-            const originalPrice = selectedVariant ? selectedVariant.price : product.price;
+            
+            // Fallback to product price if variant price is not available
+            const originalPrice = selectedVariant?.price || product.price;
             const discountedPrice = originalPrice - (originalPrice * (bestDiscount / 100));
   
             return {
@@ -112,7 +131,10 @@ const CheckoutPage = () => {
               productId: item.productId,
               variantId: item.variantId,
               name: product.title,
-              variant: selectedVariant,
+              variant: selectedVariant || {
+                attributes: [],
+                price: product.price
+              },
               originalPrice,
               discountedPrice,
               discountPercent: bestDiscount,
@@ -126,10 +148,11 @@ const CheckoutPage = () => {
         })
       );
   
+      
+
       const activeItems = itemsWithDetails.filter(item => item !== null);
       setCartItems(activeItems);
   
-      // Calculate price details
       const subtotal = activeItems.reduce((sum, item) => sum + (item.discountedPrice * item.quantity), 0);
       setPriceDetails({
         subtotal,
@@ -140,6 +163,8 @@ const CheckoutPage = () => {
       toast.error('Failed to fetch cart items');
     }
   };
+
+  console.log('Cart items:', cartItems);
   
 
   const validateAddress = () => {
@@ -166,6 +191,7 @@ const CheckoutPage = () => {
       [name]: value,
     }));
   };
+  
 
   const handleSaveAddress = async () => {
     if (!validateAddress()) {
@@ -245,6 +271,12 @@ const CheckoutPage = () => {
   };
 
   const handlePlaceOrder = async () => {
+
+    if (cartItems.some(item => item.originalPrice > 1000)) {
+      toast.error("Cash on Delivery is not available for items over ₹1000");
+      return;
+    }
+
     if (!selectedAddress) {
       toast.error("Please select a delivery address.");
       return;
@@ -254,6 +286,24 @@ const CheckoutPage = () => {
       toast.error("Your cart is empty");
       return;
     }
+
+    const outOfStockItem = cartItems.find((item) => {
+      const availableStock = item.variant?.availableQuantity; // Fetch available quantity inside the variant
+      console.log(
+        `Checking item: ${item.name} | Quantity: ${item.quantity} | Available: ${availableStock}`
+      );
+    
+      return item.quantity > availableStock;
+    });
+    
+    if (outOfStockItem) {
+      toast.error(
+        `Stock unavailable for "${outOfStockItem.name}". Available: ${outOfStockItem.variant?.availableQuantity}`
+      );
+      return;
+    }
+    
+
 
     try {
       const selectedAddressDetails = addresses.find(addr => addr._id === selectedAddress);
@@ -321,58 +371,76 @@ const CheckoutPage = () => {
       toast.error("Please select a delivery address.");
       return;
     }
+    
+    const outOfStockItem = cartItems.find((item) => {
+      const availableStock = item.variant?.availableQuantity; // Fetch available quantity inside the variant
+      console.log(
+        `Checking item: ${item.name} | Quantity: ${item.quantity} | Available: ${availableStock}`
+      );
+    
+      return item.quantity > availableStock;
+    });
+    
+    if (outOfStockItem) {
+      toast.error(
+        `Stock unavailable for "${outOfStockItem.name}". Available: ${outOfStockItem.variant?.availableQuantity}`
+      );
+      return;
+    }
+    
   
     const res = await loadRazorpay();
     if (!res) {
-      toast.error('Razorpay SDK failed to load');
+      toast.error("Razorpay SDK failed to load");
       return;
     }
   
     try {
       // Create Razorpay order
-      const orderResponse = await axiosInstance.post('/create-razorpay-order', {
+      const orderResponse = await axiosInstance.post("/create-razorpay-order", {
         amount: calculateFinalPrice(),
-        currency: 'INR'
+        currency: "INR",
       });
   
       const options = {
-        key: RAZORPAY_KEY_ID, // Use the imported key instead of process.env
+        key: RAZORPAY_KEY_ID,
         amount: orderResponse.data.order.amount,
-        currency: 'INR',
-        name: 'Your Company Name',
-        description: 'Purchase Payment',
+        currency: "INR",
+        name: "Your Company Name",
+        description: "Purchase Payment",
         order_id: orderResponse.data.order.id,
         handler: async function (response) {
           try {
             // Verify payment
-            await axiosInstance.post('/verify-payment', {
+            await axiosInstance.post("/verify-payment", {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature
+              razorpay_signature: response.razorpay_signature,
             });
   
-            // Place order
+            // Place order with "Completed" status
             const orderData = {
               userId,
               products: cartItems,
-              shippingAddress: addresses.find(addr => addr._id === selectedAddress),
-              paymentMethod: 'RazorpayX',
+              shippingAddress: addresses.find((addr) => addr._id === selectedAddress),
+              paymentMethod: "RazorpayX",
               couponCode: appliedCoupon?.name,
               totalAmount: priceDetails.total,
               finalAmount: calculateFinalPrice(),
-              razorpayOrderId: response.razorpay_order_id
+              razorpayOrderId: response.razorpay_order_id,
+              status: "Completed",
             };
   
-            const orderResponse = await axiosInstance.post('/place-order', orderData);
-            
+            const orderResponse = await axiosInstance.post("/place-order", orderData);
+  
             if (orderResponse.data?.order?._id) {
               navigate(`/orderSuccessful/${orderResponse.data.order._id}`, {
-                state: { orderId: orderResponse.data.order._id }
+                state: { orderId: orderResponse.data.order._id },
               });
             }
           } catch (error) {
-            console.error('Error processing payment:', error);
-            toast.error('Payment failed. Please try again.');
+            console.error("Error processing payment:", error);
+            toast.error("Payment failed. Please try again.");
           }
         },
         prefill: {
@@ -380,15 +448,46 @@ const CheckoutPage = () => {
           email: userDetails?.user?.email,
         },
         theme: {
-          color: '#10B981'
-        }
+          color: "#10B981",
+        },
+        modal: {
+          ondismiss: async () => {
+            // Handle payment failure
+            const orderData = {
+              userId,
+              products: cartItems,
+              shippingAddress: addresses.find((addr) => addr._id === selectedAddress),
+              paymentMethod: "RazorpayX",
+              couponCode: appliedCoupon?.name,
+              totalAmount: priceDetails.total,
+              finalAmount: calculateFinalPrice(),
+              razorpayOrderId: orderResponse.data.order.id,
+              status: "Payment Failed",
+            };
+  
+            try {
+              const failedOrderResponse = await axiosInstance.post("/place-order", orderData);
+              if (failedOrderResponse.data?.order?._id) {
+                navigate(`/Payment Failed`, {
+                  state: {
+                    orderId: failedOrderResponse.data.order._id,
+                    message: "Payment failed, but your order has been placed.",
+                  },
+                });
+              }
+            } catch (error) {
+              console.error("Error placing order with failed payment:", error);
+              toast.error("Failed to place order. Please try again.");
+            }
+          },
+        },
       };
   
       const paymentObject = new window.Razorpay(options);
       paymentObject.open();
     } catch (error) {
-      console.error('Payment initialization error:', error);
-      toast.error('Failed to initialize payment. Please try again.');
+      console.error("Payment initialization error:", error);
+      toast.error("Failed to initialize payment. Please try again.");
     }
   };
 
@@ -610,8 +709,8 @@ const CheckoutPage = () => {
     <div className="flex items-center space-x-2 p-4 rounded-lg bg-gray-700">
       <RadioGroupItem value="cod" id="cod" className="border-green-500 text-green-500" />
       <Label htmlFor="cod" className="text-green-400 flex items-center">
-        <CreditCard className="mr-2 h-5 w-5" />
-        Cash on Delivery
+      <CreditCard className="mr-2 h-5 w-5" />
+      Cash on Delivery {cartItems.some(item => item.originalPrice > 1000) && '(Unavailable)'}
       </Label>
     </div>
     <div className="flex items-center space-x-2 p-4 rounded-lg bg-gray-700 mt-2">

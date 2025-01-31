@@ -222,14 +222,13 @@ export default function AccountPage() {
         console.log(orderData.data.orderDetails)
 
 
-        const walletData = await axiosInstance.get(`/Wallet/${userId}`)
-        if(!walletData){
-          toast.error("Error in fetching wallet details.")
-        }
-        setWalletDetails(walletData.data.walletDetails);
-        console.log("Wallet details ..............",walletData.data.walletDetails)
-
-
+        const walletData = await axiosInstance.get(`/Wallet/${userId}`);
+if (!walletData || !walletData.data.walletDetails) {
+  toast.error("No wallet found. Setting up default wallet details.");
+  setWalletDetails({ balance: 0, transactions: [] }); // Default wallet
+} else {
+  setWalletDetails(walletData.data.walletDetails);
+}
   
       } catch (error) {
         console.error('Failed to fetch user data or addresses:', error);

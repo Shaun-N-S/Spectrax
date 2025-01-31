@@ -159,7 +159,8 @@ console.log("VariantId:", variantId);
                     <img src={item.image} alt={item.name} className="w-24 h-24 object-cover rounded-md" />
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{item.name}</h3>
-                      {/* <p className="text-gray-400 mt-1 line-clamp-2">{item.description}</p> */}
+                      <p className="text-gray-400 mt-1 line-clamp-2">{item.description}</p>
+                      <p className="text-gray-400 mt-1 line-clamp-2">{item.variant}</p>
                       <p className="text-gray-400 mt-1">₹{item.price.toFixed(2)}</p>
                     </div>
                     <div className="flex items-center space-x-2">

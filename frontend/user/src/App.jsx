@@ -22,6 +22,7 @@ import Filter from './components/Products/Filter'
 import CheckoutPage from './components/CheckoutPage/CheckoutPage'
 import OrderSuccessful from './components/CheckoutPage/OrderSuccessfull'
 import WishlistPage from './components/Wishlist/WishlistPage'
+import PaymentFailed from './components/CheckoutPage/PaymentFailed'
 
 const App = () => {
   return (
@@ -47,6 +48,7 @@ const App = () => {
       <Route path='/checkout' element={<ProtectedComponent><CheckoutPage/></ProtectedComponent>} />
       <Route path='/orderSuccessful/:id' element={<ProtectedComponent><OrderSuccessful/></ProtectedComponent>}/>
       <Route path='/wishlist' element ={<ProtectedComponent><WishlistPage/></ProtectedComponent>}/>
+      <Route path='/Payment Failed' element={<ProtectedComponent><PaymentFailed/></ProtectedComponent>}/>
       </Routes>
     <Footer/>
     </BrowserRouter>

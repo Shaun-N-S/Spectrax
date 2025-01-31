@@ -29,6 +29,7 @@ export default function ProductDetail() {
     savings: 0,
     discountPercent: 0
   });
+  const [wishlistMap, setWishlistMap] = useState({});
   const navigate = useNavigate();
 
   const userDetails = useSelector((state) => state.user);
@@ -57,6 +58,22 @@ export default function ProductDetail() {
       }
 
       setProductData(product);
+
+      if (userId) {
+        try {
+          const wishlistResponse = await axiosInstance.get(`/wishlist/${userId}`);
+          const wishlistItems = wishlistResponse.data.wishlist?.product || [];
+          
+          const newWishlistMap = {};
+          wishlistItems.forEach(item => {
+            newWishlistMap[item.productId._id] = true;
+          });
+          setWishlistMap(newWishlistMap);
+          setIsInWishlist(!!newWishlistMap[id]); // Update isInWishlist based on wishlistMap
+        } catch (error) {
+          console.error("Error fetching wishlist:", error);
+        }
+      }
       
       // Safely set initial variant
       if (product.variants && product.variants.length > 0) {
@@ -221,21 +238,44 @@ export default function ProductDetail() {
     }
 
     try {
-      const response = await axiosInstance.post('/add/wishlist', {
-        userId,
-        productId: id,
-        variantId: selectedVariant._id,
-      });
+      const isCurrentlyInWishlist = wishlistMap[id];
+      let response;
 
-      if (response.data.success) {
-        setIsInWishlist(true);
-        toast.success("Added to wishlist");
+      if (isCurrentlyInWishlist) {
+        // Remove from wishlist
+        response = await axiosInstance.post('/remove/wishlist', {
+          userId,
+          productId: id,
+          variantId: selectedVariant._id,
+        });
+        if (response.data.success) {
+          setWishlistMap(prev => {
+            const newMap = { ...prev };
+            delete newMap[id];
+            return newMap;
+          });
+          setIsInWishlist(false);
+          toast.success("Removed from wishlist");
+        }
       } else {
-        toast.error(response.data.message);
+        // Add to wishlist
+        response = await axiosInstance.post('/add/wishlist', {
+          userId,
+          productId: id,
+          variantId: selectedVariant._id,
+        });
+        if (response.data.success) {
+          setWishlistMap(prev => ({
+            ...prev,
+            [id]: true
+          }));
+          setIsInWishlist(true);
+          toast.success("Added to wishlist");
+        }
       }
     } catch (error) {
       console.error("Wishlist error:", error);
-      toast.error(error.response?.data?.message || "Error adding to wishlist");
+      toast.error(error.response?.data?.message || "Error updating wishlist");
     }
   };
 
@@ -375,18 +415,22 @@ export default function ProductDetail() {
                   Add to Cart
                 </Button>
                 <Button 
-    size="lg" 
-    variant="outline" 
-    className={`w-full border-primary text-primary hover:bg-primary/10 transition-all duration-300 hover:scale-105`}
-    onClick={handleWishlist}
-  >
-    <Heart className={`w-4 h-4 mr-2 ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
-    Wishlist
-  </Button>
+      size="lg" 
+      variant="outline" 
+      className={`w-full border-primary text-primary hover: transition-all duration-300 hover:scale-105`}
+      onClick={handleWishlist}
+    >
+      <Heart 
+        className={`w-4 h-4 mr-2 ${
+          wishlistMap[id] ? 'text-red-500 fill-current' : ''
+        }`}
+      />
+      {wishlistMap[id] ? 'Remove from Wishlist' : 'Add to Wishlist'}
+    </Button>
               </div>
-              <Button size="lg" className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-all duration-300 hover:scale-100 hover:bg-green-400">
+              {/* <Button size="lg" className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-all duration-300 hover:scale-100 hover:bg-green-400">
                 Buy Now
-              </Button>
+              </Button> */}
             </div>
 
             <Tabs defaultValue="specifications" className="w-full">

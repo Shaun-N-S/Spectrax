@@ -12,7 +12,7 @@ const verifyAccessToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     
-    // findById returns a Promise, so we need to await it
+    
     const user = await User.findById(decoded.id);
     
     // Check if user exists

@@ -4,6 +4,7 @@ import { CheckCircle, Truck, ShoppingBag, ArrowRight, AlertCircle } from 'lucide
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import axiosInstance from '@/axios/userAxios'
+import { downloadInvoice } from './invoiceDownload';
 
 export default function OrderSuccessful() {
   const { orderId } = useParams()
@@ -104,6 +105,12 @@ export default function OrderSuccessful() {
     navigate('/Account')
   }
 
+  const handleInvoiceDownload = () => {
+    if (orderDetails) {
+      downloadInvoice(orderDetails);
+    }
+  };
+
 
 
   return (
@@ -156,9 +163,9 @@ export default function OrderSuccessful() {
                 <Truck className="mr-2 h-4 w-4  text-black hover:bg-gray-400" />
                 Track Order
               </Button>
-              <Button variant="outline" className="flex items-center  text-black hover:bg-gray-400" onClick={handleOrderHistory}>
+              <Button variant="outline" className="flex items-center  text-black hover:bg-gray-400" onClick={handleInvoiceDownload}>
                 <ShoppingBag className="mr-2 h-4 w-4 text-black hover:bg-gray-400" />
-                View Order History
+                Invoice Download
               </Button>
             </div>
             <Link to="/" className="w-full">

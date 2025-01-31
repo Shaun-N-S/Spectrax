@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,10 +10,95 @@ import { Package, Truck, CreditCard, Calendar, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import axiosInstance from '@/axios/userAxios';
 import { toast } from 'react-hot-toast';
+import { ShoppingBag } from 'lucide-react';
+import { downloadInvoice } from '../CheckoutPage/InvoiceDownload';
+
+
+const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
+
+
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
+
+const ReturnDialog = ({ isOpen, onClose, onSubmit }) => {
+  const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(reason, description);
+    onClose();
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-gray-800 text-white">
+        <DialogHeader>
+          <DialogTitle>Return Order</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Return Reason</label>
+            <select 
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full p-2 bg-gray-700 rounded-md"
+              required
+            >
+              <option value="">Select a reason</option>
+              <option value="Wrong Item">Wrong Item</option>
+              <option value="Defective Product">Defective Product</option>
+              <option value="Size/Fit Issue">Size/Fit Issue</option>
+              <option value="Not as Described">Not as Described</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-2 bg-gray-700 rounded-md"
+              rows="3"
+              required
+              placeholder="Please provide more details about your return reason..."
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            {/* <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button> */}
+            <Button type="submit">
+              Submit Return
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 
 const OrderDetailsBox = ({ order, open, onOpenChange, onStatusUpdate }) => {
   if (!order) return null;
+  const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
 
+
+
+
+
+  console.log("Order details from the orderDetails box.....",order)
+
+
+  
   const handleCancelOrder = async () => {
     if (order.orderStatus === 'Shipped' || order.orderStatus === 'Delivered') {
       toast.error('Orders that are shipped or delivered cannot be cancelled');
@@ -41,19 +126,90 @@ const OrderDetailsBox = ({ order, open, onOpenChange, onStatusUpdate }) => {
   };
   
 
-  
-  const handleReturnOrder = async () => {
-    if (order.orderStatus !== 'Delivered') {
-      toast.error('Only delivered orders can be returned');
+  const handleRetryPayment = async (order) => {
+    if (order.orderStatus !== 'Payment Failed') {
+      toast.error('Payment retry is only allowed for failed payments');
       return;
     }
   
     try {
-      const response = await axiosInstance.post(
-        `/update/order-status/${order._id}`,
-        { status: 'Returned' }
-      );
+      const res = await loadRazorpay();
+      if (!res) {
+        toast.error("Failed to load Razorpay SDK.");
+        return;
+      }
   
+      // Create a new Razorpay order
+      const retryResponse = await axiosInstance.post("/create-razorpay-order", {
+        amount: order.finalAmount,
+        currency: "INR",
+      });
+  
+      const options = {
+        key: RAZORPAY_KEY_ID,
+        amount: retryResponse.data.order.amount,
+        currency: "INR",
+        name: "SpectraX",
+        description: "Retry Payment",
+        order_id: retryResponse.data.order.id,
+        handler: async (response) => {
+          try {
+            // Verify payment
+            await axiosInstance.post("/verify-payment", {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: order._id // Add original order ID
+            });
+  
+            // ✅ Update order status to "Completed"
+            await axiosInstance.post(`/order/status/${order._id}`, {
+              status: "Processing"
+            });
+  
+            toast.success("Payment successful, order updated to Completed.");
+            onStatusUpdate(order._id, 'Completed');
+            onOpenChange(false);
+          } catch (error) {
+            console.error("Error verifying payment:", error);
+            toast.error(error.response?.data?.message || "Payment verification failed. Please try again.");
+          }
+        },
+        prefill: {
+          name: order.customerName,
+          email: order.customerEmail,
+        },
+        theme: {
+          color: "#0033A0",
+        },
+      };
+  
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
+    } catch (error) {
+      console.error("Retry payment error:", error);
+      toast.error(error.response?.data?.message || "Failed to process payment. Please try again.");
+    }
+  };
+  
+
+  
+  const handleReturnOrder = async (reason, description) => {
+    if (order.orderStatus !== 'Delivered') {
+      toast.error('Only delivered orders can be returned');
+      return;
+    }
+
+    try {
+      const response = await axiosInstance.post(
+        `/order/return/${order._id}`,
+        { 
+          status: 'Returned',
+          returnReason: reason,
+          returnDescription: description
+        }
+      );
+
       if (response.data.wallet) {
         const refundAmount = response.data.wallet.lastTransaction.amount;
         toast.success(`Return processed and ₹${refundAmount.toFixed(2)} refunded to wallet`);
@@ -67,7 +223,34 @@ const OrderDetailsBox = ({ order, open, onOpenChange, onStatusUpdate }) => {
       toast.error(error.response?.data?.message || 'Failed to process return');
     }
   };
-  
+
+  const handleReturnClick = () => {
+    setIsReturnDialogOpen(true);
+  };
+
+  const handleInvoiceDownload = () => {
+    if (order) {
+      // Create a properly formatted order object for the invoice
+      const formattedOrder = {
+        _id: order._id,
+        orderDate: order.orderDate,
+        createdAt: order.createdAt,
+        products: order.products.map(product => ({
+          name: product.name,
+          quantity: product.quantity,
+          price: product.price,
+          variant: product.variant
+        })),
+        shippingAddress: order.shippingAddress,
+        totalAmount: order.totalAmount,
+        finalAmount: order.finalAmount,
+        coupon: order.coupon,
+        deliveryCharge: 0 // Since it's not in your data, defaulting to 0
+      };
+      
+      downloadInvoice(formattedOrder);
+    }
+  };
 
   // Helper function to safely display variant details
   const renderVariantValue = (value) => {
@@ -208,29 +391,53 @@ const OrderDetailsBox = ({ order, open, onOpenChange, onStatusUpdate }) => {
         </div>
 
         <div className="flex justify-center gap-4 pt-6">
-        {order.orderStatus !== 'Cancelled' && order.orderStatus !== 'Returned' && (
-          <>
-            {order.orderStatus !== 'Shipped' && order.orderStatus !== 'Delivered' && (
-              <Button 
-                variant="destructive"
-                className="w-40" 
-                onClick={handleCancelOrder}
-              >
-                Cancel Order
-              </Button>
-            )}
-            {order.orderStatus === 'Delivered' && (
-              <Button 
-                variant="destructive"
-                className="w-40" 
-                onClick={handleReturnOrder}
-              >
-                Return Order
-              </Button>
-            )}
-          </>
-        )}
-      </div>
+  {order.orderStatus !== "Cancelled" && order.orderStatus !== "Returned" && (
+    <>
+      {order.orderStatus === "Payment Failed" && (
+        <Button
+          variant="default"
+          className="w-40"
+          onClick={() => handleRetryPayment(order)}
+        >
+          Retry Payment
+        </Button>
+      )}
+      {order.orderStatus !== "Shipped" && order.orderStatus !== "Delivered" && order.orderStatus !== "Payment Failed" && (
+        <Button
+          variant="destructive"
+          className="w-40"
+          onClick={handleCancelOrder}
+        >
+          Cancel Order
+        </Button>
+      )}
+      {order.orderStatus === "Delivered" && (
+        <Button
+          variant="destructive"
+          className="w-40"
+          onClick={handleReturnClick}
+        >
+          Return Order
+        </Button>
+      )}
+    </>
+  )}
+  <Button 
+    variant="outline" 
+    className="flex items-center text-black hover:bg-gray-400" 
+    onClick={handleInvoiceDownload}
+  >
+    <ShoppingBag className="mr-2 h-4 w-4 text-black hover:bg-gray-400"/>
+    Invoice Download
+  </Button>
+</div>
+
+<ReturnDialog
+  isOpen={isReturnDialogOpen}
+  onClose={() => setIsReturnDialogOpen(false)}
+  onSubmit={handleReturnOrder}
+/>
+
       </DialogContent>
     </Dialog>
   );

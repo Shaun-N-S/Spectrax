@@ -126,11 +126,11 @@ const FilterComponent = ({ isOpen, setIsOpen, setProducts }) => {
                       <SelectValue placeholder="Select option" />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                      <SelectItem value="popularity" className="hover:bg-gray-700">Popularity</SelectItem>
+                      {/* <SelectItem value="popularity" className="hover:bg-gray-700">Popularity</SelectItem> */}
                       <SelectItem value="price-low-high" className="hover:bg-gray-700">Price: Low to High</SelectItem>
                       <SelectItem value="price-high-low" className="hover:bg-gray-700">Price: High to Low</SelectItem>
-                      <SelectItem value="average-rating" className="hover:bg-gray-700">Average Rating</SelectItem>
-                      <SelectItem value="featured" className="hover:bg-gray-700">Featured</SelectItem>
+                      {/* <SelectItem value="average-rating" className="hover:bg-gray-700">Average Rating</SelectItem> */}
+                      {/* <SelectItem value="featured" className="hover:bg-gray-700">Featured</SelectItem> */}
                       <SelectItem value="new-arrivals" className="hover:bg-gray-700">New Arrivals</SelectItem>
                       <SelectItem value="a-z" className="hover:bg-gray-700">A - Z</SelectItem>
                       <SelectItem value="z-a" className="hover:bg-gray-700">Z - A</SelectItem>

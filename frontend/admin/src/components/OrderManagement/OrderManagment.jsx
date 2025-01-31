@@ -30,58 +30,53 @@ function OrderManagement() {
     };
   
     const handleStatusChange = async (orderId, newStatus, currentStatus) => {
-        if (newStatus === currentStatus) return;
-        
-        if (currentStatus === 'Delivered') {
-          toast.error('Cannot change status of delivered orders');
+      if (newStatus === currentStatus) return;
+  
+      if (['Delivered', 'Cancelled', 'Payment Failed', 'Returned'].includes(currentStatus)) {
+          toast.error(`Cannot change status of ${currentStatus} orders`);
           return;
-        }
-
-        if(currentStatus === 'Cancelled'){
-            toast.error("Cannot change status of Cancelled orders ");
-            return;
-        }
-    
-        try {
+      }
+  
+      try {
           setIsLoading(true);
-          
+  
           // Optimistically update the UI
-          setOrders(prevOrders => 
-            prevOrders.map(order => 
-              order._id === orderId ? { ...order, orderStatus: newStatus } : order
-            )
-          );
-
-          const response = await axiosInstance.post(`/order/status/${orderId}`, {
-            status: newStatus,
-            role: 'admin'
-          });
-          
-          if (response.data && response.data.updatedOrder) {
-            // Update with the server response to ensure consistency
-            setOrders(prevOrders => 
-              prevOrders.map(order => 
-                order._id === orderId ? { ...order, ...response.data.updatedOrder } : order
+          setOrders(prevOrders =>
+              prevOrders.map(order =>
+                  order._id === orderId ? { ...order, orderStatus: newStatus } : order
               )
-            );
-            toast.success(`Order status updated to ${newStatus}`);
-          }
-        } catch (error) {
-          console.error('Error updating order status:', error);
-          
-          // Revert to the previous state in case of error
-          setOrders(prevOrders => 
-            prevOrders.map(order => 
-              order._id === orderId ? { ...order, orderStatus: currentStatus } : order
-            )
           );
-          
+  
+          const response = await axiosInstance.post(`/order/status/${orderId}`, {
+              status: newStatus,
+              role: 'admin'
+          });
+  
+          if (response.data && response.data.updatedOrder) {
+              setOrders(prevOrders =>
+                  prevOrders.map(order =>
+                      order._id === orderId ? { ...order, ...response.data.updatedOrder } : order
+                  )
+              );
+              toast.success(`Order status updated to ${newStatus}`);
+          }
+      } catch (error) {
+          console.error('Error updating order status:', error);
+  
+          // Revert to previous state on error
+          setOrders(prevOrders =>
+              prevOrders.map(order =>
+                  order._id === orderId ? { ...order, orderStatus: currentStatus } : order
+              )
+          );
+  
           const errorMessage = error.response?.data?.message || 'Failed to update order status';
           toast.error(errorMessage);
-        } finally {
+      } finally {
           setIsLoading(false);
-        }
-    };
+      }
+  };
+  
 
     // Format date to local string
     const formatDate = (dateString) => {

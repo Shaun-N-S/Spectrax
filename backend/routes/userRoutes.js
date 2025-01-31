@@ -8,7 +8,7 @@ const { addAddress, fetchAddress , updateAddressStatus, updateAddress, fetchAddr
 const { AddCart, CartDetails, UpdateQuantity, RemoveItem } = require("../controller/cartController");
 const { getAllCategoriesIsactive } = require("../controller/categoryController");
 const { getallIsactiveBrands } = require("../controller/brandController");
-const { placeOrder, fetchOrders, orderById, orderStatusUpdate, verifyRazorpayPayment, createRazorpayOrder, refundOrders } = require("../controller/orderController");
+const { placeOrder, fetchOrders, orderById, orderStatusUpdate, verifyRazorpayPayment, createRazorpayOrder, refundOrders, returnOrderStatusUpdate } = require("../controller/orderController");
 const { validateCoupon } = require("../controller/CouponController");
 const { addToWishlist, getWishlist, removeFromWishlist } = require("../controller/wishlistController");
 const { getWallet } = require("../controller/walletController");
@@ -75,6 +75,9 @@ userRoutes.post('/update/order-status/:id', orderStatusUpdate);
 userRoutes.post('/create-razorpay-order', createRazorpayOrder);
 userRoutes.post('/verify-payment', verifyRazorpayPayment);
 userRoutes.post('/refund-order/:orderId',refundOrders)
+userRoutes.post('/order/status/:id', orderStatusUpdate);
+userRoutes.post('/order/return/:id',returnOrderStatusUpdate)
+
 
 
 // ------------------ Coupon Management Routes ------------------

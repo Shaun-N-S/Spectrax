@@ -87,22 +87,6 @@ const logoutAdmin = async (req, res) => {
 
 
 
-// const refreshToken=async (req,res) => {
-    
-//   const refreshToken=req.cookies.refreshToken
-//   if(!refreshToken) return res.status(400).json({message:"no refresh token available login again"})
-// try {
-//   const decoded=  jwt.verify(refreshToken,process.env.ADMIN_REFRESH_TOKEN_KEY)
-//   const user=await User.findOne({email:decoded.email})
-//   if(!user) return res.status(400).json({message:"user not found"})
-//       const newAccessToken=jwt.sign({email:user.email},process.env.ADMIN_ACCESS_TOKEN_KEY)
-
-//   return res.status(200).json({message:'new token created',newAccessToken})
-// } catch (error) {
-//   console.log(error)
-//   return res.status(403).json({message:"error in creating new access token"})
-// }
-// }
 
 
 
@@ -112,6 +96,6 @@ module.exports = {
   adminLogin,
   logoutAdmin,
   fetchAllUsers,
-  // refreshToken
+  
   
 };

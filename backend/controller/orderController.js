@@ -87,7 +87,17 @@ const verifyRazorpayPayment = async (req, res) => {
 
 const placeOrder = async (req, res) => {
     try {
-        const { userId, products, shippingAddress, paymentMethod, couponCode, totalAmount, finalAmount, razorpayOrderId } = req.body;
+        const { 
+            userId, 
+            products, 
+            shippingAddress, 
+            paymentMethod, 
+            couponCode, 
+            totalAmount, 
+            finalAmount, 
+            razorpayOrderId,
+            status 
+        } = req.body;
 
         if (!userId || !products || !products.length || !shippingAddress || !paymentMethod) {
             return res.status(400).json({ message: "All fields are required." });
@@ -135,8 +145,10 @@ const placeOrder = async (req, res) => {
             discountAmount,
             finalAmount: finalAmount || (totalAmount - discountAmount),
             orderDate: new Date(),
-            orderStatus: 'Processing',
-            paymentStatus: paymentMethod === 'RazorpayX' ? 'Completed' : 'Pending'
+            // Handle different order statuses
+            orderStatus: status === 'Payment Failed' ? 'Payment Failed' : 'Processing',
+            paymentStatus: status === 'Payment Failed' ? 'Failed' : 
+                (paymentMethod === 'RazorpayX' ? 'Completed' : 'Pending')
         };
 
         // Add Razorpay order ID if payment method is RazorpayX
@@ -149,14 +161,18 @@ const placeOrder = async (req, res) => {
         const newOrder = new Order(orderData);
         await newOrder.save();
 
-        // Clear cart after successful order
-        await Cart.findOneAndUpdate(
-            { userId: userId },
-            { $set: { items: [] } }
-        );
+        // Only clear cart for successful orders
+        if (orderData.orderStatus !== 'Payment Failed') {
+            await Cart.findOneAndUpdate(
+                { userId: userId },
+                { $set: { items: [] } }
+            );
+        }
 
         return res.status(201).json({ 
-            message: "Order placed successfully.", 
+            message: status === 'Payment Failed' 
+                ? "Order created with payment failure" 
+                : "Order placed successfully.", 
             order: newOrder 
         });
 
@@ -168,7 +184,6 @@ const placeOrder = async (req, res) => {
         });
     }
 };
-
 const fetchOrders = async (req, res) => {
     try {
         const { id:userId } = req.params;
@@ -228,6 +243,92 @@ const orderById = async (req, res) => {
     }
 };
 
+const returnOrderStatusUpdate = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, returnReason, returnDescription } = req.body;
+
+        // Basic validation
+        if (!status) {
+            return res.status(400).json({ message: "Status is required" });
+        }
+
+        // Find order
+        const orderDetails = await Order.findById(id);
+        if (!orderDetails) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        // Validate return request
+        if (status !== 'Returned') {
+            return res.status(400).json({ message: "Invalid status for return order" });
+        }
+
+        if (!returnReason || !returnDescription) {
+            return res.status(400).json({
+                message: "Return reason and description are required"
+            });
+        }
+
+        // Validate order status
+        if (orderDetails.orderStatus !== 'Delivered') {
+            return res.status(400).json({
+                message: "Only delivered orders can be returned"
+            });
+        }
+
+        // Add return details
+        orderDetails.returnDetails = {
+            reason: returnReason,
+            description: returnDescription,
+            returnDate: new Date()
+        };
+
+        // Process refund if payment is completed
+        if (orderDetails.paymentStatus === 'Completed') {
+            try {
+                const wallet = await processRefund(orderDetails);
+                
+                // Update order status
+                orderDetails.orderStatus = status;
+                const updatedOrder = await orderDetails.save();
+
+                return res.status(200).json({
+                    message: "Return processed successfully",
+                    order: updatedOrder,
+                    wallet: {
+                        currentBalance: wallet.balance,
+                        lastTransaction: wallet.transactions[wallet.transactions.length - 1]
+                    }
+                });
+            } catch (refundError) {
+                console.error("Refund processing failed:", refundError);
+                return res.status(500).json({
+                    message: "Failed to process refund",
+                    error: refundError.message
+                });
+            }
+        }
+
+        // If no refund was needed, just update the order
+        orderDetails.orderStatus = status;
+        const updatedOrder = await orderDetails.save();
+
+        return res.status(200).json({
+            message: "Return processed successfully",
+            order: updatedOrder
+        });
+
+    } catch (error) {
+        console.error("Error processing return:", error);
+        return res.status(500).json({
+            message: "Error processing return order",
+            error: error.message
+        });
+    }
+};
+
+
 const orderStatusUpdate = async (req, res) => {
     try {
         const { id } = req.params;
@@ -238,7 +339,7 @@ const orderStatusUpdate = async (req, res) => {
         }
 
         const orderDetails = await Order.findById(id);
-        console.log(orderDetails)
+        
         if (!orderDetails) {
             return res.status(404).json({ message: "Order not found" });
         }
@@ -249,37 +350,47 @@ const orderStatusUpdate = async (req, res) => {
 
         // Handle Cancellation
         if (status === 'Cancelled') {
+            // Check if order can be cancelled
             if (orderDetails.orderStatus === 'Shipped' || orderDetails.orderStatus === 'Delivered') {
                 return res.status(400).json({
                     message: `Cannot cancel the order with current status ${orderDetails.orderStatus}`,
                 });
             }
 
-            // Process refund for RazorpayX payments that are completed
+            // Process refund for completed Razorpay payments
             if (orderDetails.paymentMethod === 'RazorpayX' && orderDetails.paymentStatus === 'Completed') {
+                await processRefund(orderDetails);
+            }
+            // Also handle cancellations for orders that are still in Processing/Confirmed status
+            else if (orderDetails.paymentMethod === 'RazorpayX' && 
+                     ['Processing', 'Confirmed'].includes(orderDetails.orderStatus) && 
+                     orderDetails.paymentStatus === 'Completed') {
                 await processRefund(orderDetails);
             }
         }
 
         // Handle Returns
         if (status === 'Returned') {
-            // Can only return delivered orders
             if (orderDetails.orderStatus !== 'Delivered') {
                 return res.status(400).json({
                     message: "Only delivered orders can be returned",
                 });
             }
 
-            // Process refund for both COD and RazorpayX payments that are completed
             if (orderDetails.paymentStatus === 'Completed') {
                 await processRefund(orderDetails);
             }
         }
 
-        orderDetails.orderStatus = status;
-        if(orderDetails.orderStatus === 'Delivered'){
-            orderDetails.paymentStatus = 'Completed'
+        if (status === 'Processing') {
+            orderDetails.paymentStatus = 'Completed';
         }
+
+        orderDetails.orderStatus = status;
+        if (orderDetails.orderStatus === 'Delivered') {
+            orderDetails.paymentStatus = 'Completed';
+        }
+
         const updateOrder = await orderDetails.save();
 
         const responseData = {
@@ -339,11 +450,11 @@ const processRefund = async (order) => {
     return wallet;
 };
 
-
 const getallorders = async (req,res) =>{
     try {
 
-        const orders = await Order.find()
+        const orders = await Order.find().sort({ createdAt: -1 });
+
         if(!orders){
             return res.status(404).json({message:"Orders not found . "});
         };
@@ -432,4 +543,5 @@ module.exports = {
     createRazorpayOrder,
     verifyRazorpayPayment,
     refundOrders,
+    returnOrderStatusUpdate,
 }

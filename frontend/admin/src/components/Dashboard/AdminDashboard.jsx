@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { motion } from "framer-motion"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import SalesReport from "./SalesReport"
+import TopSellingItems from './TopSellingItems';
 
 // Sample data for the chart
 // const salesData = [
@@ -56,6 +57,16 @@ const AdminDashboard = () => {
   className="mb-8"
 >
   <SalesReport />
+</motion.div>
+
+
+<motion.div
+  initial={{ y: 20, opacity: 0 }}
+  animate={{ y: 0, opacity: 1 }}
+  transition={{ delay: 0.3 }}
+  className="mb-8"
+>
+  <TopSellingItems />
 </motion.div>
 
 

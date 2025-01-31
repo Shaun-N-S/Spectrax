@@ -48,13 +48,29 @@ export default function CartPage() {
               const productResponse = await axiosInstance.get(`/showProductsById/${item.productId}`);
               const product = productResponse.data.product;
     
-              // Fetch offer details
-              const offerDetails = await axiosInstance.get(`/Offer/fetch/${product.offerId}`);
-              const categoryOfferDetails = await axiosInstance.get(`/Offer/category/${product.categoryId}`);
-    
-              // Get the discount percentages
-              const productOffer = offerDetails.data.offerData?.discountPercent || 0;
-              const categoryOffer = categoryOfferDetails.data.offerData?.discountPercent || 0;
+              // Initialize discount percentages
+              let productOffer = 0;
+              let categoryOffer = 0;
+
+              // Only fetch offer details if offerId exists
+              if (product.offerId) {
+                try {
+                  const offerDetails = await axiosInstance.get(`/Offer/fetch/${product.offerId}`);
+                  productOffer = offerDetails.data.offerData?.discountPercent || 0;
+                } catch (error) {
+                  console.log('Error fetching product offer:', error);
+                }
+              }
+
+              // Always try to fetch category offer as it might exist independently
+              if (product.categoryId) {
+                try {
+                  const categoryOfferDetails = await axiosInstance.get(`/Offer/category/${product.categoryId}`);
+                  categoryOffer = categoryOfferDetails.data.offerData?.discountPercent || 0;
+                } catch (error) {
+                  console.log('Error fetching category offer:', error);
+                }
+              }
     
               // Determine the best discount
               const bestDiscount = Math.max(productOffer, categoryOffer);

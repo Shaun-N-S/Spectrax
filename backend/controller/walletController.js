@@ -11,7 +11,10 @@ const getWallet = async (req,res) =>{
             return res.status(404).json({message:"ID not found "});
         }
 
-        const walletDetails = await Wallet.findOne({userId})
+        const walletDetails = await Wallet.findOne({userId});
+        if (walletDetails && walletDetails.transactions) {
+            walletDetails.transactions = walletDetails.transactions.reverse(); 
+          }
         console.log(walletDetails);
 
         return res.status(200).json({message:"Wallet details fetched succesfully !",walletDetails});

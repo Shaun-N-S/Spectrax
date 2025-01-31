@@ -106,26 +106,51 @@ const SalesReport = () => {
 
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
-  
     
+    // Header with store name
     const storeName = "SPECTRAX"; 
-    doc.setFontSize(18);
-    doc.setTextColor(40);
-    doc.text(storeName, 14, 20);  
-  
+    doc.setFontSize(20);
+    doc.setTextColor(0, 51, 102);
+    doc.text(storeName, 14, 20);
     
-    doc.setLineWidth(0.5);
-    doc.line(14, 25, 196, 25);  
-  
-    
+    // Add report date range
     doc.setFontSize(12);
     doc.setTextColor(70);
-    doc.text(`Sales Report: ${format(startDate, 'PPP')} to ${format(endDate, 'PPP')}`, 14, 35);
-  
-   
+    doc.text(`Sales Report: ${format(startDate, 'PPP')} to ${format(endDate, 'PPP')}`, 14, 30);
+    
+    // Add horizontal line
+    doc.setLineWidth(0.5);
+    doc.line(14, 35, 196, 35);
+    
+    // Add summary statistics in a grid layout
+    doc.setFontSize(12);
+    doc.setTextColor(0, 51, 102);
+    
+    // Create boxes for summary statistics
+    const boxHeight = 25;
+    const boxSpacing = 50;
+    
+    // Helper function to draw a statistic box
+    const drawStatBox = (title, value, x, y) => {
+      doc.setFillColor(240, 240, 240);
+      doc.rect(x, y, 45, boxHeight, 'F');
+      doc.setFontSize(10);
+      doc.setTextColor(70);
+      doc.text(title, x + 2, y + 6);
+      doc.setFontSize(12);
+      doc.setTextColor(0, 51, 102);
+      doc.text(value, x + 2, y + 18);
+    };
+    
+    // Draw summary boxes
+    drawStatBox('Total Sales', `₹${totalSales.toLocaleString()}`, 14, 45);
+    drawStatBox('Total Orders', totalOrders.toLocaleString(), 64, 45);
+    drawStatBox('Total Discount', `₹${totalDiscount.toLocaleString()}`, 114, 45);
+    drawStatBox('Products Sold', totalProductsSold.toLocaleString(), 164, 45);
+    
+    // Add some spacing before the table
     const tableHeaders = ['Date', 'Total Sales', 'Total Orders', 'Total Discount', 'Products Sold'];
-  
-  
+    
     const tableRows = salesData.map(row => [
       row.date,
       `₹${row.totalSales.toLocaleString()}`,
@@ -133,46 +158,54 @@ const SalesReport = () => {
       `₹${row.totalDiscount.toLocaleString()}`,
       row.totalProductsSold
     ]);
-  
-    // Add table to the PDF with styled headers
+    
+    // Add table with enhanced styling
     doc.autoTable({
-      startY: 40,  // Adjust start position based on content above
+      startY: 80,  // Adjusted to accommodate summary boxes
       head: [tableHeaders],
       body: tableRows,
-      theme: 'striped',  // Striped rows for a more professional look
+      theme: 'grid',
       headStyles: {
-        fillColor: [0, 102, 204],  
-        textColor: [255, 255, 255],  // Header text color
-        fontSize: 12,  // Font size for headers
+        fillColor: [0, 51, 102],
+        textColor: [255, 255, 255],
+        fontSize: 12,
+        fontStyle: 'bold',
+        halign: 'center',
       },
       bodyStyles: {
-        fontSize: 10,  // Font size for table body
-        cellPadding: 6,  // Padding within table cells
+        fontSize: 10,
+        cellPadding: 6,
+        halign: 'center',
       },
-      footStyles: {
-        fillColor: [0, 102, 204],  // Footer row color
-        textColor: [255, 255, 255],  // Footer text color
-      },
-      margin: { top: 40 },
-      styles: {
-        lineColor: [0, 0, 0],
-        lineWidth: 0.1,  // Thin borders for table cells
+      columnStyles: {
+        0: { cellWidth: 30 },  // Date column
+        1: { cellWidth: 35 },  // Sales column
+        2: { cellWidth: 30 },  // Orders column
+        3: { cellWidth: 35 },  // Discount column
+        4: { cellWidth: 30 },  // Products column
       },
       alternateRowStyles: {
-        fillColor: [240, 240, 240],  // Light gray alternate row color
+        fillColor: [245, 245, 245],
       },
+      margin: { top: 80 },
     });
-  
-    // Add footer with page number
+    
+    // Add footer with page number and timestamp
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(10);
       doc.setTextColor(150);
-      doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      doc.text(
+        `Generated on ${format(new Date(), 'PPP')} - Page ${i} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
     }
-  
-    // Save the PDF
+    
     doc.save('Sales_Report.pdf');
   };
 
@@ -227,11 +260,11 @@ const SalesReport = () => {
             <SelectItem value="weekly">Weekly</SelectItem>
             <SelectItem value="monthly">Monthly</SelectItem>
             <SelectItem value="yearly">Yearly</SelectItem>
-            <SelectItem value="custom">Custom Date Range</SelectItem>
+            {/* <SelectItem value="custom">Custom Date Range</SelectItem> */}
           </SelectContent>
         </Select>
 
-        <Popover>
+        {/* <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline">
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -241,9 +274,9 @@ const SalesReport = () => {
           <PopoverContent className="w-auto p-0">
             <Calendar mode="single" selected={startDate} onSelect={handleStartDateChange} initialFocus />
           </PopoverContent>
-        </Popover>
+        </Popover> */}
 
-        <Popover>
+        {/* <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline">
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -253,9 +286,9 @@ const SalesReport = () => {
           <PopoverContent className="w-auto p-0">
             <Calendar mode="single" selected={endDate} onSelect={handleEndDateChange} initialFocus />
           </PopoverContent>
-        </Popover>
+        </Popover> */}
 
-        <Button onClick={handleGenerateReport}>Generate Report</Button>
+        {/* <Button onClick={handleGenerateReport}>Generate Report</Button> */}
       </div>
 
       <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

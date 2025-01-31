@@ -19,9 +19,12 @@ const ProductPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isFilterOpen, setIsFilterOpen] = useState(false); 
-  const [wishlistProducts, setWishlistProducts] = useState([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [wishlistMap, setWishlistMap] = useState({}); 
+  const [productOffers, setProductOffers] = useState({});
+  const [categoryOffers, setCategoryOffers] = useState({});
   const location = useLocation();
+  
   const userDetails = useSelector((state)=>state.user)
   const getUserId = (userDetails)=>{
     return userDetails?.user?._id || userDetails?.user?.id
@@ -31,30 +34,104 @@ const ProductPage = () => {
 
   const query = new URLSearchParams(location.search).get("search");
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch products
-        const productsResponse = await axiosInstance.get("/showproductsisActive");
-        setProducts(productsResponse.data.products);
-  
-        // Fetch wishlist if user is logged in
-        if (userId) {
-          const wishlistResponse = await axiosInstance.get(`/wishlist/${userId}`);
-          
-          // Ensure wishlist contains product IDs
-          const wishlistItems = wishlistResponse.data.wishlist?.product || [];
-          setWishlistProducts(wishlistItems.map(item => item.productId));
-        }
-  
-        setLoading(false);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError("Error fetching products");
-        setLoading(false);
-      }
+  const calculateBestDiscount = (originalPrice, productOffer, categoryOffer) => {
+    let bestDiscountPercent = 0;
+    const currentDate = new Date();
+
+    if (productOffer && 
+        productOffer.isActive && 
+        new Date(productOffer.startDate) <= currentDate && 
+        new Date(productOffer.endDate) >= currentDate) {
+      bestDiscountPercent = Math.max(bestDiscountPercent, productOffer.discountPercent);
+    }
+
+    if (categoryOffer && 
+        categoryOffer.isActive && 
+        new Date(categoryOffer.startDate) <= currentDate && 
+        new Date(categoryOffer.endDate) >= currentDate) {
+      bestDiscountPercent = Math.max(bestDiscountPercent, categoryOffer.discountPercent);
+    }
+
+    const discountedPrice = originalPrice - (originalPrice * (bestDiscountPercent / 100));
+    const savings = originalPrice - discountedPrice;
+
+    return {
+      discountedPrice,
+      originalPrice,
+      savings,
+      discountPercent: bestDiscountPercent
     };
-  
+  };
+
+
+  const fetchData = async () => {
+    try {
+      const productsResponse = await axiosInstance.get("/showproductsisActive");
+      const products = productsResponse.data.products;
+
+      // Fetch offers for all products
+      const offersPromises = products.map(async (product) => {
+        const offers = { productOffer: null, categoryOffer: null };
+        
+        if (product.offerId) {
+          try {
+            const productOfferResponse = await axiosInstance.get(`/Offer/fetch/${product.offerId}`);
+            offers.productOffer = productOfferResponse.data.offerData;
+          } catch (error) {
+            console.error("Error fetching product offer:", error);
+          }
+        }
+
+        if (product.categoryId) {
+          try {
+            const categoryOfferResponse = await axiosInstance.get(`/Offer/category/${product.categoryId}`);
+            offers.categoryOffer = categoryOfferResponse.data.offerData;
+          } catch (error) {
+            console.error("Error fetching category offer:", error);
+          }
+        }
+
+        return {
+          productId: product._id,
+          offers
+        };
+      });
+
+      const offersResults = await Promise.all(offersPromises);
+      
+      // Create maps of offers
+      const productOffersMap = {};
+      const categoryOffersMap = {};
+      offersResults.forEach(result => {
+        productOffersMap[result.productId] = result.offers.productOffer;
+        categoryOffersMap[result.productId] = result.offers.categoryOffer;
+      });
+
+      setProductOffers(productOffersMap);
+      setCategoryOffers(categoryOffersMap);
+      setProducts(products);
+
+      // Fetch wishlist if user is logged in
+      if (userId) {
+        const wishlistResponse = await axiosInstance.get(`/wishlist/${userId}`);
+        const wishlistItems = wishlistResponse.data.wishlist?.product || [];
+        
+        const newWishlistMap = {};
+        wishlistItems.forEach(item => {
+          newWishlistMap[item.productId._id] = true;
+        });
+        setWishlistMap(newWishlistMap);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError("Error fetching products");
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [userId]);
 
@@ -86,7 +163,7 @@ const ProductPage = () => {
   
   
 
-  console.log(wishlistProducts)
+  // console.log(wishlistProducts)
   const navigate = useNavigate();
 
 
@@ -95,8 +172,9 @@ const ProductPage = () => {
   console.log("ProductId:", productId);
   console.log("VariantId:", variantId);
 
+
     try {
-      await axiosInstance.post(
+      const response = await axiosInstance.post(
         '/Cart',
         { 
           userId,
@@ -106,7 +184,7 @@ const ProductPage = () => {
         },
         { withCredentials: true } 
       );
-      
+      console.log("Response:", response.data);
       console.log("Product added to cart successfully");
       toast.success("Added to cart");
       navigate('/cart');
@@ -131,30 +209,53 @@ const ProductPage = () => {
     }
 
     try {
-      const response = await axiosInstance.post('/add/wishlist', {
-        userId,
-        productId,
-        variantId,
-      });
+      const isCurrentlyInWishlist = wishlistMap[productId];
+      let response;
 
-      if (response.data.success) {
-        setWishlistProducts([...wishlistProducts, productId]);
-        toast.success("Added to wishlist");
-        // navigate('/wishlist')
+      if (isCurrentlyInWishlist) {
+        // Remove from wishlist
+        response = await axiosInstance.post('/remove/wishlist', {
+          userId,
+          productId,
+          variantId,
+        });
+        if (response.data.success) {
+          setWishlistMap(prev => {
+            const newMap = { ...prev };
+            delete newMap[productId];
+            return newMap;
+          });
+          toast.success("Removed from wishlist");
+        }
       } else {
-        toast.error(response.data.message);
+        // Add to wishlist
+        response = await axiosInstance.post('/add/wishlist', {
+          userId,
+          productId,
+          variantId,
+        });
+        if (response.data.success) {
+          setWishlistMap(prev => ({
+            ...prev,
+            [productId]: true
+          }));
+          toast.success("Added to wishlist");
+        }
       }
     } catch (error) {
       console.error("Wishlist error:", error);
-      toast.error(error.response?.data?.message || "Error adding to wishlist");
+      toast.error(error.response?.data?.message || "Error updating wishlist");
     }
   };
 
   const renderHeartIcon = (productId) => {
-    const isInWishlist = wishlistProducts.includes(productId); // Check if product is in wishlist
+    const isInWishlist = wishlistMap[productId];
+    console.log("Product ID:", productId, "Is in wishlist:", isInWishlist);
     return (
       <Heart 
-        className={`w-5 h-5 ${isInWishlist ? 'text-red-500 fill-current' : 'text-white'}`}
+        className={`w-5 h-5 transition-colors duration-300 ${
+          isInWishlist ? 'text-red-500 fill-current' : 'text-white hover:text-red-300'
+        }`}
         aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
       />
     );
@@ -206,13 +307,12 @@ const ProductPage = () => {
                   alt={product.title}
                   className="w-full h-64 object-cover"
                 />
-                 <div
-  className="absolute top-4 left-4 bg-black/70 p-2 rounded-full hover:bg-primary/70 transition-colors cursor-pointer"
-  onClick={() => handleWishlist(userId, product._id, product.variants?.[0]?._id)}
->
-  {renderHeartIcon(product._id)} {/* Use the renderHeartIcon method */}
-</div>
-
+                <button
+                  className="absolute top-4 left-4 bg-black/70 p-2 rounded-full hover:bg-black/90 transition-colors cursor-pointer"
+                  onClick={() => handleWishlist(userId, product._id, product.variants?.[0]?._id)}
+                >
+                  {renderHeartIcon(product._id)}
+                </button>
                 <Badge
                   variant="outline"
                   className="absolute top-4 right-4 bg-black/70 text-green-400 border-green-400"
@@ -229,7 +329,7 @@ const ProductPage = () => {
                 </p>
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-green-400 text-2xl font-bold">
-                  ₹{product.price}
+                    ₹{product.price}
                   </span>
                   <div className="flex items-center text-yellow-400">
                     {[...Array(5)].map((_, index) => (
@@ -244,8 +344,7 @@ const ProductPage = () => {
                   <Button
                     variant="outline"
                     className="w-full border-green-500 text-green-400 hover:bg-green-500 hover:text-black transition-colors duration-300"
-                    onClick={()=>handleCart(userId, product._id, product.variants?.[0]?._id)}
-                    
+                    onClick={() => handleCart(userId, product._id, product.variants?.[0]?._id)}
                   >
                     <FaShoppingCart className="mr-2" />
                     Add to Cart
@@ -262,9 +361,6 @@ const ProductPage = () => {
             </Card>
           ))}
         </div>
-
-        
-
       </div>
     </div>
   );

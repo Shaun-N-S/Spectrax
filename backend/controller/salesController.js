@@ -1,4 +1,7 @@
 const Order = require('../models/OrderSchema');
+const Product = require('../models/ProductSchema');
+const Category = require('../models/CategorySchema');
+const Brand = require('../models/BrandSchema');
 
 const salesReport = async (req, res) => {
   try {
@@ -88,6 +91,109 @@ const salesReport = async (req, res) => {
   }
 };
 
+
+const getSalesAnalytics = async (req, res) => {
+  try {
+    // Top Products
+    const topProducts = await Order.aggregate([
+      { $match: { paymentStatus: 'Completed' } },
+      { $unwind: { path: '$products', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: '$products.productId',
+          productName: { $first: '$products.name' },
+          totalQuantity: { $sum: '$products.quantity' }
+        }
+      },
+      { $sort: { totalQuantity: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Top Categories
+    const topCategories = await Order.aggregate([
+      { $match: { paymentStatus: 'Completed' } },
+      { $unwind: { path: '$products', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'products.productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'product.categoryId',
+          foreignField: '_id',
+          as: 'category'
+        }
+      },
+      { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: '$category._id',
+          categoryName: { $first: '$category.name' },
+          totalQuantity: { $sum: '$products.quantity' }
+        }
+      },
+      { $sort: { totalQuantity: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Top Brands
+    const topBrands = await Order.aggregate([
+      { $match: { paymentStatus: 'Completed' } },
+      { $unwind: { path: '$products', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'products.productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'brands',
+          localField: 'product.brandId',
+          foreignField: '_id',
+          as: 'brand'
+        }
+      },
+      { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: '$brand._id',
+          brandName: { $first: '$brand.name' },
+          totalQuantity: { $sum: '$products.quantity' }
+        }
+      },
+      { $sort: { totalQuantity: -1 } },
+      { $limit: 10 }
+    ]);
+
+    return res.status(200).json({
+      message: 'Analytics data fetched successfully',
+      data: {
+        topProducts,
+        topCategories,
+        topBrands
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    return res.status(500).json({ message: 'Error while fetching analytics data' });
+  }
+};
+
+
+
+
 module.exports = {
   salesReport,
+  getSalesAnalytics,
+
 };

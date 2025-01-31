@@ -82,7 +82,7 @@ const orderSchema = new mongoose.Schema({
   },
   orderStatus: {
     type: String,
-    enum: ['Processing', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'],
+    enum: ['Processing', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled', 'Returned','Payment Failed'],
     default: 'Processing',
   },
   totalAmount: {
@@ -105,12 +105,12 @@ const orderSchema = new mongoose.Schema({
   offer: {
     offerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Offer', // Reference to the Offer model
+      ref: 'Offer', 
     },
-    name: String, // Name of the applied offer
+    name: String,
     discountAmount: {
       type: Number,
-      default: 0, // Discount amount due to the offer
+      default: 0, 
     },
   },
   discountAmount: {
@@ -125,7 +125,21 @@ const orderSchema = new mongoose.Schema({
   orderDate: {
     type: Date,
     default: Date.now,
-  },
+  }, 
+  returnDetails: {
+    reason: {
+      type: String,
+      enum: ['Wrong Item', 'Defective Product', 'Not as Described', 'Other'],
+      required: function() { return this.orderStatus === 'Returned'; }
+    },
+    description: {
+      type: String,
+      required: function() { return this.orderStatus === 'Returned'; }
+    },
+    returnDate: {
+      type: Date
+    }
+  }
 }, { timestamps: true });
 
 // Fix: Check if model already exists, and if so, use that, otherwise define it
