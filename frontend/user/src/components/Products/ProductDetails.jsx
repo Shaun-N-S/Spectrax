@@ -208,6 +208,11 @@ export default function ProductDetail() {
 
   const handleCart = async (userId, productId, variantId) => {
     console.log("suer ID  ....",userId)
+    if(!userId){
+      toast.error("Please login to add items to cart");
+      navigate('/login');
+      return;
+    }
     try {
       // Using selectedVariant._id instead of hardcoded first variant
       await axiosInstance.post(
@@ -220,6 +225,8 @@ export default function ProductDetail() {
         },
         { withCredentials: true } 
       );
+
+      
       
       toast.success("Added to cart");
       navigate('/cart');

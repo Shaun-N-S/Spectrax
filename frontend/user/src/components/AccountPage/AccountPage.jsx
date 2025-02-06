@@ -72,6 +72,14 @@ export default function AccountPage() {
   const [topUpAmount, setTopUpAmount] = useState('');
 
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 5; 
+
+
+  const [currentTransactionPage, setCurrentTransactionPage] = useState(1);
+  const transactionsPerPage = 5;
+
+
   const validateProfile = () => {
     const newErrors = {};
     
@@ -527,6 +535,21 @@ const handleTopUp = async () => {
   }
 };
 
+
+const totalPages = Math.ceil(orderDetails.length / ordersPerPage);
+  const startIndex = (currentPage - 1) * ordersPerPage;
+  const endIndex = startIndex + ordersPerPage;
+  const currentOrders = orderDetails.slice(startIndex, endIndex);
+
+
+
+  const totalTransactionPages = Math.ceil((walletDetails?.transactions?.length || 0) / transactionsPerPage);
+  const startTransactionIndex = (currentTransactionPage - 1) * transactionsPerPage;
+  const endTransactionIndex = startTransactionIndex + transactionsPerPage;
+  const currentTransactions = walletDetails?.transactions?.slice(startTransactionIndex, endTransactionIndex) || [];
+  
+
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -739,7 +762,6 @@ const handleTopUp = async () => {
                   </div>
                 )}
                 </div>
-
                   <CardFooter className="flex justify-between items-center gap-4 px-0 mt-4">
                    <Button 
                      type="button"
@@ -749,6 +771,7 @@ const handleTopUp = async () => {
                      Add Address
                    </Button>
                  </CardFooter>
+
 
 
 
@@ -853,59 +876,90 @@ const handleTopUp = async () => {
     </CardHeader>
     <CardContent>
       <div className="space-y-4">
-        {orderDetails.map((order) => (
-          <div
-            key={order._id}
-            className="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
-          >
-            <div className="flex items-center space-x-4">
-              <Package className="w-6 h-6" />
-              <div>
-                {order.products.map((product) => (
-                  <div key={product._id} className="space-y-1">
-                    <p className="font-medium">Product: {product.name}</p>
-                    <p className="font-medium">Quantity: {product.quantity || 1}</p>
-                    <p className="font-medium">
-                      Final Price: ₹{(product.price * (product.quantity || 1))}
-                    </p>
-                    <span className="font-medium">Status: </span>
-                    <span 
-                      className={`
-                        font-medium 
-                        ${
-                          order.orderStatus === 'Processing' ? 'text-yellow-400' :
-                          order.orderStatus === 'Shipped' ? 'text-blue-500' :
-                          order.orderStatus === 'Delivered' ? 'text-green-500' :
-                          order.orderStatus === 'Cancelled' ? 'text-red-500' : 
-                          'text-amber-500'
-                        }`}
-                    >
-                      {order.orderStatus}
-                    </span>
-                  </div>
-                ))}
-                <p className="text-sm text-gray-400">
-                  Placed on: {new Date(order.orderDate).toLocaleDateString()}
-                </p>
+        {currentOrders.length === 0 ? (
+          <p className="text-center text-gray-400">No orders found.</p>
+        ) : (
+          currentOrders.map((order) => (
+            <div
+              key={order._id}
+              className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-gray-700 rounded-lg"
+            >
+              {/* Left Section - Order Details */}
+              <div className="flex items-center space-x-4">
+                <Package className="w-6 h-6 text-gray-300" />
+                <div>
+                  <p className="font-semibold text-lg text-white">Order #{order._id.slice(-6)}</p>
+                  <p className="text-sm text-gray-400">
+                    Placed on: {new Date(order.orderDate).toLocaleDateString()}
+                  </p>
+                  {order.products.map((product) => (
+                    <div key={product._id} className="space-y-1">
+                      <p className="font-medium text-gray-200">Product: {product.name}</p>
+                      <p className="font-medium text-gray-300">Quantity: {product.quantity || 1}</p>
+                      <p className="font-medium text-green-400">
+                        Final Price: ₹{product.price * (product.quantity || 1)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Section - Status & Button */}
+              <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4">
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    order.orderStatus === "Processing"
+                      ? "bg-yellow-400 text-yellow-900"
+                      : order.orderStatus === "Shipped"
+                      ? "bg-blue-500 text-blue-900"
+                      : order.orderStatus === "Delivered"
+                      ? "bg-green-500 text-green-900"
+                      : order.orderStatus === "Cancelled"
+                      ? "bg-red-500 text-red-900"
+                      : "bg-gray-300 text-gray-900"
+                  }`}
+                >
+                  {order.orderStatus}
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedOrder(order);
+                    setIsOrderDetailsOpen(true);
+                  }}
+                  className="text-black border-gray-500 hover:bg-gray-600 hover:text-white"
+                >
+                  View Details
+                </Button>
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                setSelectedOrder(order);
-                setIsOrderDetailsOpen(true);
-              }}
-              className='text-black hover:bg-gray-300'
-            >
-              View Details
-            </Button>
-          </div>
-        ))}
+          ))
+        )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center mt-6 space-x-2">
+          
+
+          {Array.from({ length: totalPages }, (_, index) => (
+            <Button
+              key={index + 1}
+              variant={currentPage === index + 1 ? "default"  : "outline"}
+              onClick={() => setCurrentPage(index + 1)}
+              className="px-3 py-1 text-gray-600"
+            >
+              {index + 1}
+            </Button>
+          ))}
+        </div>
+      )}
     </CardContent>
   </Card>
 </TabsContent>
+
 
 <TabsContent value="Wallet">
             <Card className="bg-gray-800 border-gray-700 text-white">
@@ -938,7 +992,7 @@ const handleTopUp = async () => {
                   <div className="space-y-4">
                     <h3 className="text-xl font-semibold">Recent Transactions</h3>
                     <div className="space-y-2">
-                      {walletDetails.transactions.map((transaction) => (
+                      {currentTransactions.map((transaction) => (
                         <div key={transaction._id} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
                           <div className="flex items-center">
                             {transaction.type === 'refund' ? (
@@ -957,6 +1011,21 @@ const handleTopUp = async () => {
                         </div>
                       ))}
                     </div>
+                     {/* Wallet Transactions Pagination */}
+{walletDetails?.transactions?.length > 0 && totalTransactionPages > 1 && (
+  <div className="flex justify-center items-center mt-6 space-x-2">
+    {Array.from({ length: totalTransactionPages }, (_, index) => (
+      <Button
+        key={index + 1}
+        variant={currentTransactionPage === index + 1 ? "default" : "outline"}
+        onClick={() => setCurrentTransactionPage(index + 1)}
+        className="px-3 py-1 text-gray-600"
+      >
+        {index + 1}
+      </Button>
+    ))}
+  </div>
+)}
                   </div>
                 </div>
               </CardContent>

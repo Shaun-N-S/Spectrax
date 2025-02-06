@@ -123,6 +123,24 @@ const placeOrder = async (req, res) => {
             }
         }
 
+        // First, verify stock availability for all products
+        for (const item of products) {
+            const product = await Product.findOne(
+                {
+                    _id: item.productId,
+                    'variants._id': item.variantId,
+                    'variants.availableQuantity': { $gte: item.quantity }
+                },
+                { 'variants.$': 1 }
+            );
+
+            if (!product) {
+                return res.status(400).json({ 
+                    message: `Insufficient stock for product ${item.name}` 
+                });
+            }
+        }
+
         const orderData = {
             userId,
             products: products.map(item => ({
@@ -145,13 +163,11 @@ const placeOrder = async (req, res) => {
             discountAmount,
             finalAmount: finalAmount || (totalAmount - discountAmount),
             orderDate: new Date(),
-            // Handle different order statuses
             orderStatus: status === 'Payment Failed' ? 'Payment Failed' : 'Processing',
             paymentStatus: status === 'Payment Failed' ? 'Failed' : 
                 (paymentMethod === 'RazorpayX' ? 'Completed' : 'Pending')
         };
 
-        // Add Razorpay order ID if payment method is RazorpayX
         if (paymentMethod === 'RazorpayX' && razorpayOrderId) {
             orderData.razorpay = {
                 orderId: razorpayOrderId
@@ -161,12 +177,31 @@ const placeOrder = async (req, res) => {
         const newOrder = new Order(orderData);
         await newOrder.save();
 
-        // Only clear cart for successful orders
+        // Only update stock and clear cart for successful orders
         if (orderData.orderStatus !== 'Payment Failed') {
-            await Cart.findOneAndUpdate(
+            // Update stock for each product variant
+            const stockUpdatePromises = products.map(item => 
+                Product.findOneAndUpdate(
+                    {
+                        _id: item.productId,
+                        'variants._id': item.variantId
+                    },
+                    {
+                        $inc: {
+                            'variants.$.availableQuantity': -item.quantity
+                        }
+                    }
+                )
+            );
+
+            // Clear cart
+            const clearCartPromise = Cart.findOneAndUpdate(
                 { userId: userId },
                 { $set: { items: [] } }
             );
+
+            // Execute all updates in parallel
+            await Promise.all([...stockUpdatePromises, clearCartPromise]);
         }
 
         return res.status(201).json({ 
@@ -184,6 +219,8 @@ const placeOrder = async (req, res) => {
         });
     }
 };
+
+
 const fetchOrders = async (req, res) => {
     try {
         const { id:userId } = req.params;
@@ -357,6 +394,24 @@ const orderStatusUpdate = async (req, res) => {
                 });
             }
 
+            // Restore product quantities back to stock
+            const stockUpdatePromises = orderDetails.products.map(item => 
+                Product.findOneAndUpdate(
+                    {
+                        _id: item.productId,
+                        'variants._id': item.variantId
+                    },
+                    {
+                        $inc: {
+                            'variants.$.availableQuantity': item.quantity // Add back the quantity
+                        }
+                    }
+                )
+            );
+
+            // Wait for all stock updates to complete
+            await Promise.all(stockUpdatePromises);
+
             // Process refund for completed Razorpay payments
             if (orderDetails.paymentMethod === 'RazorpayX' && orderDetails.paymentStatus === 'Completed') {
                 await processRefund(orderDetails);
@@ -376,6 +431,39 @@ const orderStatusUpdate = async (req, res) => {
                     message: "Only delivered orders can be returned",
                 });
             }
+
+            // Restore product quantities for returned items
+            const stockUpdatePromises = orderDetails.products.map(async (item) => {
+                try {
+                    console.log(`Updating stock for Product ID: ${item.productId}, Variant ID: ${item.variantId}, Quantity: ${item.quantity}`);
+            
+                    const product = await Product.findOne({ _id: item.productId });
+            
+                    if (!product) {
+                        console.error(`Product not found: ${item.productId}`);
+                        return;
+                    }
+            
+                    const variantIndex = product.variants.findIndex(v => v._id.toString() === item.variantId.toString());
+            
+                    if (variantIndex === -1) {
+                        console.error(`Variant not found: ${item.variantId} in Product: ${item.productId}`);
+                        return;
+                    }
+            
+                    // Updating the stock
+                    product.variants[variantIndex].availableQuantity += item.quantity;
+                    await product.save();
+            
+                    console.log(`Stock updated successfully for Variant ID: ${item.variantId}`);
+                } catch (error) {
+                    console.error("Stock update error:", error);
+                }
+            });
+            
+            await Promise.all(stockUpdatePromises);
+            
+            
 
             if (orderDetails.paymentStatus === 'Completed') {
                 await processRefund(orderDetails);
@@ -449,6 +537,9 @@ const processRefund = async (order) => {
     await wallet.save();
     return wallet;
 };
+
+
+
 
 const getallorders = async (req,res) =>{
     try {

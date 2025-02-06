@@ -59,124 +59,108 @@ async function sendVerificationEmail(email,otp) {
 
 const signup = async (req, res) => {
   try {
-      console.log(req.body);
+    console.log(req.body);
 
-      const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
+    const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
 
-      // Check if passwords match
-      if (password !== confirmPassword) {
-          return res.status(400).json({ message: "Passwords do not match" });
-      }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
 
-      // Check if a user with this email already exists
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-          return res.status(400).json({ message: "User with this email already exists" });
-      }
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User with this email already exists" });
+    }
 
-      // Generate OTP
-      const otp = generateOtp();
-      console.log("Generated OTP:", otp);
+    const otp = generateOtp();
+    console.log("Generated OTP:", otp);
 
-      // Send verification email with OTP
-      const emailSent = await sendVerificationEmail(email, otp);
-      if (!emailSent) {
-          return res.status(500).json({ message: "Failed to send verification email" });
-      }
+    const emailSent = await sendVerificationEmail(email, otp);
+    if (!emailSent) {
+      return res.status(500).json({ message: "Failed to send verification email" });
+    }
 
-      // Store OTP and user data in the session
-      req.session.userOtp = otp;
-      req.session.userData = { firstName, lastName, email, phone, password };
+    // Store OTP in an HTTP-Only cookie (expires in 5 minutes)
+    res.cookie("userOtp", otp, { httpOnly: true, maxAge: 5 * 60 * 1000 });
 
+    // Store user data in another cookie (optional)
+    res.cookie("userData", JSON.stringify({ firstName, lastName, email, phone, password }), {
+      httpOnly: true,
+      maxAge: 10 * 60 * 1000, // 10 minutes expiration
+    });
 
-      // Debug log to verify session data
-      console.log("Session after setting user data:", req.session);
+    res.status(200).json({ success: true, message: "OTP sent successfully" });
 
-      // Respond with success message
-      res.status(200).json({ success: true, message: "OTP sent successfully" });
-
-      console.log("OTP Sent:", otp);
-      console.log("Session OTP:", req.session.userOtp);
+    console.log("OTP Sent:", otp);
   } catch (error) {
-      console.error("Signup error:", error);
-      res.status(500).json({ message: "An internal server error occurred" });
+    console.error("Signup error:", error);
+    res.status(500).json({ message: "An internal server error occurred" });
   }
 };
 
 
+
 const verifyOtp = async (req, res) => {
-    try {
-        const { otp } = req.body;
-        console.log('Session User Data:', req.session.userData);
-        console.log("session", req.session)
-        console.log('Session OTP:', req.session.userOtp);
-        console.log('Entered OTP:', otp);
+  try {
+    const { otp } = req.body;
+    const storedOtp = req.cookies.userOtp;
+    const userData = JSON.parse(req.cookies.userData || "{}");
 
-        // Check if the OTP matches
-        if (req.session.userOtp && req.session.userOtp === otp) {
-            const { firstName, lastName, email, phone, password } = req.session.userData;
+    console.log("Entered OTP:", otp);
+    console.log("Stored OTP from Cookie:", storedOtp);
 
-            // Hash the password
-            const hashedPassword = await securePassword(password);
-
-            // Create and save the new user
-            const user = new User({
-                firstName,
-                lastName,
-                email,
-                phone,
-                password: hashedPassword,
-            });
-
-            await user.save();
-
-            // Clear session data
-            req.session.userOtp = null;
-            // req.session.userData = null;
-
-            console.log("User verified successfully and registered");
-            return res.status(201).json({ message: 'User registered successfully', user });
-        } else {
-            return res.status(400).json({ message: 'Invalid OTP' });
-        }
-    } catch (error) {
-        console.error('OTP verification error:', error);
-        res.status(500).json({ message: 'Server error' });
+    if (!storedOtp || otp !== storedOtp) {
+      return res.status(400).json({ message: "Invalid OTP" });
     }
+
+    const { firstName, lastName, email, phone, password } = userData;
+
+    const hashedPassword = await securePassword(password);
+
+    const user = new User({
+      firstName,
+      lastName,
+      email,
+      phone,
+      password: hashedPassword,
+    });
+
+    await user.save();
+
+    // Clear cookies after successful registration
+    res.clearCookie("userOtp");
+    res.clearCookie("userData");
+
+    console.log("User verified successfully and registered");
+    return res.status(201).json({ message: "User registered successfully", user });
+  } catch (error) {
+    console.error("OTP verification error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
+
 
 
 
 
 const resendOtp = async (req, res) => {
-  console.log("resend otp");
   try {
-    const email = req.body.email || (req.session.userData && req.session.userData.email);
-
-
-    
+    const email = req.body.email || (req.cookies.userData && JSON.parse(req.cookies.userData).email);
 
     if (!email) {
       return res.status(400).json({ message: "Email is required to resend OTP" });
     }
 
-    // Generate a new OTP
     const otp = generateOtp();
-    console.log(otp)
-    req.session.userOtp = otp;
-    console.log("otp in session",req.session.userOtp)
+    console.log("New OTP:", otp);
 
+    // Update OTP in HTTP-Only Cookie
+    res.cookie("userOtp", otp, { httpOnly: true, maxAge: 5 * 60 * 1000 });
 
-    // Send OTP via email
     const emailSent = await sendVerificationEmail(email, otp);
-
     if (!emailSent) {
       return res.status(500).json({ message: "Failed to resend OTP" });
     }
-
-    // Save the OTP to the session or database
-    req.session.userOtp = null;
-    req.session.userOtp = otp;
 
     return res.status(200).json({ message: "OTP resent successfully" });
   } catch (error) {
@@ -189,61 +173,78 @@ const resendOtp = async (req, res) => {
 
 
 
-const   googleAuth = async (req, res) => {
-    try {
+const googleAuth = async (req, res) => {
+  try {
+      console.log("Received request body:", req.body);
       const { token } = req.body;
-  
-      // Verify the token with Google
-      const ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
-  
-      const payload = ticket.getPayload();
-      const { email, given_name: firstName, family_name: lastName } = payload;
-  
-      // Check if the user already exists
-      let user = await User.findOne({ email });
-  
-      if (!user) {
-        // If the user doesn't exist, create a new one
-        user = new User({
-          firstName,
-          lastName,
-          email,
-          googleAuth: true,
-        });
-        await user.save();
+      
+      if (!token) {
+          return res.status(400).json({ message: 'Token is required' });
       }
-  
-      // Generate tokens
-   const accessToken = generateAccessToken(user._id);
-   const refreshToken = generateRefreshToken(user._id);
 
-   // Store access token and refresh token in HTTP-only cookies
-   res.cookie('accessToken', accessToken, {
-     httpOnly: true,
-     secure: process.env.NODE_ENV === 'production',
-     sameSite: 'Lax',
-   });
+      const ticket = await client.verifyIdToken({
+          idToken: token,
+          audience: process.env.GOOGLE_CLIENT_ID,
+      });
 
-   res.cookie('refreshToken', refreshToken, {
-     httpOnly: true,
-     secure: process.env.NODE_ENV === 'production',
-     sameSite: 'Lax',
-   });
+      const payload = ticket.getPayload();
+      console.log("Google payload:", payload);
+
+      // Extract name parts
+      const fullName = payload.given_name || payload.name || '';
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0];
+      // Join the rest of the parts as lastName, or use a default
+      const lastName = nameParts.slice(1).join(' ') || 'Unknown';
+
+      const { email } = payload;
+
+      // Check if user exists
+      let user = await User.findOne({ email });
+
+      if (!user) {
+          user = new User({
+              firstName,
+              lastName,
+              email,
+              googleAuth: true,
+          });
+          await user.save();
+      }
+
+      const accessToken = generateAccessToken(user._id);
+      const refreshToken = generateRefreshToken(user._id);
+
+      res.cookie('accessToken', accessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'Lax',
+      });
+
+      res.cookie('refreshToken', refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'Lax',
+      });
 
       res.status(200).json({
-        message: 'Google login successful',
-        id: user._id,
-        name: user.firstName,
-        email: user.email,
+          message: 'Google login successful',
+          id: user._id,
+          name: user.firstName,
+          email: user.email,
       });
-    } catch (error) {
-      console.error('Google Auth Error:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  };
+  } catch (error) {
+      console.error('Detailed Google Auth Error:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+      });
+      res.status(500).json({ 
+          message: 'Internal server error',
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+  }
+};
 
 
 
@@ -395,102 +396,79 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    
-
-    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Generate OTP
     const otp = generateOtp();
-    console.log("Generated OTP:", otp); // Remove in production
+    console.log("Generated OTP:", otp);
 
-    // Send verification email with OTP
     const emailSent = await sendVerificationEmail(email, otp);
     if (!emailSent) {
       return res.status(500).json({ message: "Failed to send verification email" });
     }
 
-    // Store OTP and user data in the session
-    req.session.userOtp = otp;
-    req.session.userData = {
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      phone: user.phone,
-    };
+    // Store OTP and user data in cookies
+    res.cookie("userOtp", otp, { httpOnly: true, maxAge: 5 * 60 * 1000 });
+    res.cookie("userData", JSON.stringify({ email }), { httpOnly: true, maxAge: 10 * 60 * 1000 });
 
-    // Debug log (Remove in production)
-    console.log("Session after setting user data:", req.session);
-
-    // Respond with success message
     res.status(200).json({ success: true, message: "OTP sent successfully" });
-
   } catch (error) {
     console.error("Error in forget password:", error);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-const forgotPasswordVerifyOtp = async (req, res) => {
-  try {
-    const { otp } = req.body;
-    console.log("Entered otp:", otp);
-    console.log("session otp:", req.session.userOtp);
-
-    if (!otp) {
-      return res.status(400).json({ message: 'Please enter otp' });
-    }
-
-    if (otp !== req.session.userOtp) {
-      return res.status(400).json({ message: "Invalid Otp" });
-    }
-
-    // No need for the third condition since we already checked equality above
-    return res.status(200).json({ message: "otp verified successfully" });
-    
-  } catch (error) {
-    console.log('Error in verifying forgot password otp:', error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
 
-const resetPassword = async (req, res) => {
+const forgotPasswordVerifyOtp = async (req, res) => {
   try {
-    // Extract new password from the request body
-    const { newPassword } = req.body;
+    const { otp } = req.body;
+    const storedOtp = req.cookies.userOtp;
 
-    // Validate session and retrieve email
-    if (!req.session.userData || !req.session.userData.email) {
-      return res.status(400).json({ message: "Session expired or invalid. Please try again." });
+    console.log("Entered OTP:", otp);
+    console.log("Stored OTP from Cookie:", storedOtp);
+
+    if (!otp) {
+      return res.status(400).json({ message: "Please enter OTP" });
     }
 
-    const email = req.session.userData.email;
+    if (otp !== storedOtp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
 
-    // Find the user in the database
-    const user = await User.findOne({ email });
+    return res.status(200).json({ message: "OTP verified successfully" });
+  } catch (error) {
+    console.log("Error in verifying forgot password OTP:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+const resetPassword = async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const userData = JSON.parse(req.cookies.userData || "{}");
+
+    if (!userData.email) {
+      return res.status(400).json({ message: "Session expired. Please try again." });
+    }
+
+    const user = await User.findOne({ email: userData.email });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Hash the new password securely
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Update the user's password in the database
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
     await user.save();
 
-    // Clear sensitive session data
-    req.session.userData = null;
-    req.session.userOtp = null;
+    // Clear cookies after resetting password
+    res.clearCookie("userOtp");
+    res.clearCookie("userData");
 
-    // Respond with success
     res.status(200).json({ success: true, message: "Password reset successfully." });
-
   } catch (error) {
     console.error("Error in reset password:", error);
     res.status(500).json({ message: "Internal server error" });

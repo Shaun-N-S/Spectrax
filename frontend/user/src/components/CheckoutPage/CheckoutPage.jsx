@@ -720,6 +720,13 @@ const CheckoutPage = () => {
         Pay Online (RazorpayX)
       </Label>
     </div>
+    {/* <div className="flex items-center space-x-2 p-4 rounded-lg bg-gray-700 mt-2">
+      <RadioGroupItem value="Wallet" id="Wallet" className="border-green-500 text-green-500" />
+      <Label htmlFor="Wallet Payment" className="text-green-400 flex items-center">
+        <CreditCard className="mr-2 h-5 w-5" />
+        Wallet Payment
+      </Label>
+    </div> */}
   </RadioGroup>
 </CardContent>
             </Card>

@@ -32,7 +32,8 @@ const App = () => {
     <Breadcrumbs/>
     <Toaster />
     <Routes>
-    <Route path='/' element={<ProtectHome><Home/></ProtectHome>}/>
+    {/* <Route path='/' element={<ProtectHome><Home/></ProtectHome>}/> */}
+    <Route path='/' element={<Home/>}/>
       <Route path="/login" element={<ProtectEdit><Login/></ProtectEdit>} />
       <Route path='/signup' element={<ProtectEdit><SignUp/></ProtectEdit>}/>
       <Route path='/otp' element={<ProtectEdit><OtpVerification/></ProtectEdit>}/>
@@ -40,8 +41,12 @@ const App = () => {
       <Route path='/forgotpassword/otp' element={<ProtectEdit><ForgotPasswordOtp/></ProtectEdit>}/>
       <Route path='/resetpassword' element={<ProtectEdit><ResetPassword/></ProtectEdit>}/>
       <Route path='/home' element={<ProtectHome><Home/></ProtectHome>}/>
-      <Route path='/shop' element={<ProtectedComponent><ProductPage/></ProtectedComponent>}/>
-      <Route path='/product_details/:id' element={<ProtectedComponent><ProductDetails/></ProtectedComponent>}/>
+      {/* <Route path='/shop' element={<ProtectedComponent><ProductPage/></ProtectedComponent>}/> */}
+      <Route path='/shop' element={<ProductPage/>}/>
+
+      {/* <Route path='/product_details/:id' element={<ProtectedComponent><ProductDetails/></ProtectedComponent>}/> */}
+      <Route path='/product_details/:id' element={<ProductDetails/>}/>
+
       <Route path='/Account' element={<ProtectedComponent><AccountPage/></ProtectedComponent>} />
       <Route path='/cart' element ={<ProtectedComponent><CartPage/></ProtectedComponent>}/>
       <Route path='/filter' element={<ProtectedComponent><Filter/></ProtectedComponent>}/>

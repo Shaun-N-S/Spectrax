@@ -16,24 +16,36 @@ import axiosInstance from '@/axios/adminAxios';
 import { toast } from 'react-toastify';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-const formSchema = z.object({
-  couponCode: z.string().min(3, {
-    message: 'Coupon code must be at least 3 characters.',
-  }),
-  couponType: z.enum(['percentage', 'fixed']),
-  description: z.string().min(10, {
-    message: 'Description must be at least 10 characters.',
-  }),
-  discountValue: z.number().positive({
-    message: 'Discount value must be a positive number.',
-  }),
-  minimumPrice: z.number().nonnegative({
-    message: 'Minimum price must be a non-negative number.',
-  }),
-  expireDate: z.date({
-    required_error: 'Expiration date is required.',
-  }),
-});
+const formSchema = z
+  .object({
+    couponCode: z.string().min(3, {
+      message: 'Coupon code must be at least 3 characters.',
+    }),
+    couponType: z.enum(['percentage', 'fixed']),
+    description: z.string().min(10, {
+      message: 'Description must be at least 10 characters.',
+    }),
+    discountValue: z.number().positive({
+      message: 'Discount value must be a positive number.',
+    }),
+    minimumPrice: z.number().nonnegative({
+      message: 'Minimum price must be a non-negative number.',
+    }),
+    expireDate: z.date({
+      required_error: 'Expiration date is required.',
+    }),
+  })
+  .superRefine((values, ctx) => {
+    if (values.couponType === 'percentage' && values.discountValue > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Percentage discount cannot exceed 100%.',
+        path: ['discountValue'],
+      });
+    }
+  });
+
+
 
 export default function AddCoupon() {
   const location = useLocation();

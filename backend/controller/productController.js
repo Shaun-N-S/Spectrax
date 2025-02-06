@@ -67,6 +67,18 @@ const showProducts = async (req, res) => {
     }
   }
 
+  const showProductsIsActiveOffer = async (req,res)=>{
+    try {
+      const products = await Product.find({ 
+        offerId: { $exists: false }, 
+        status: "active" 
+    });
+      res.status(200).json({ message: 'Products retrieved successfully', products });
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  }
+
 
 
 
@@ -276,6 +288,7 @@ module.exports = {
     showProductsIsActive,
     filteredProduct,
     searchProducts,
+    showProductsIsActiveOffer,
 
 
 }

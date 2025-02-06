@@ -4,7 +4,7 @@ const adminRoutes = express.Router();
 // Controllers
 const { adminLogin, logoutAdmin, fetchAllUsers } = require('../controller/adminController');
 const { verifyAdmin } = require('../middleware/verifyAdmin');
-const { addProduct, showProducts, editProduct, showProductById, toggleProductStatus } = require('../controller/productController');
+const { addProduct, showProducts, editProduct, showProductById, toggleProductStatus,showProductsIsActive, showProductsIsActiveOffer } = require('../controller/productController');
 const { addCategory, getAllCategories, editCategory, toggleCategoryStatus, getAllCategoriesIsactive } = require('../controller/categoryController');
 const { updateUserStatus } = require('../controller/userController');
 const { addBrand, getAllBrand, toggleBrandStatus, updateBrandName, getallIsactiveBrands } = require('../controller/brandController');
@@ -26,6 +26,8 @@ adminRoutes.patch('/updateuserstatus/:id', verifyRoute, updateUserStatus);
 adminRoutes.post('/product', verifyRoute, addProduct);
 adminRoutes.get('/showproducts', verifyRoute, showProducts);
 adminRoutes.get('/showProductById/:id', verifyRoute, showProductById);
+adminRoutes.get('/showproductsIsActive', verifyRoute, showProductsIsActive);
+adminRoutes.get('/showproductsIsActiveOffer', verifyRoute, showProductsIsActiveOffer);
 adminRoutes.put('/product/:id', verifyRoute, editProduct);
 adminRoutes.patch('/toggleProductStatus/:id', verifyRoute, toggleProductStatus);
 

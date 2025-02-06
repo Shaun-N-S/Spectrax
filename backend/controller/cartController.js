@@ -90,9 +90,7 @@ const CartDetails = async (req, res) => {
         // Fetch cart based on userId
         const cartData = await Cart.findOne({ userId });
 
-        if (!cartData) {
-            return res.status(404).json({ message: "Cart data not found." });
-        }
+        
 
         // Send success response with cart data
         return res.status(200).json({ message: "Cart data retrieved successfully.", data: cartData });

@@ -22,87 +22,105 @@ const SalesReport = () => {
   const [endDate, setEndDate] = useState(new Date())
   const [salesData, setSalesData] = useState([])
   const [loading, setLoading] = useState(false)
+  const [showDatePickers, setShowDatePickers] = useState(false)
 
   useEffect(() => {
-    fetchSalesData()
-  }, [reportType, startDate, endDate])
+    if (reportType !== "custom") {
+      fetchSalesData()
+    }
+  }, [reportType])
+
+  useEffect(() => {
+    if (reportType === "custom") {
+      fetchSalesData()
+    }
+  }, [startDate, endDate])
 
   const fetchSalesData = async () => {
-    setLoading(true);
+    if (!startDate || !endDate) return
+    
+    setLoading(true)
     try {
       const response = await axiosInstance.get("/sales-report", {
         params: {
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
-          dateRange: reportType,  // reportType can be 'daily', 'weekly', 'monthly', 'yearly', or 'custom'
+          dateRange: reportType,
         },
-      });
-  
+      })
+
       if (response.data.data && response.data.data.length > 0) {
-        setSalesData(response.data.data);
+        // Transform the data for the chart
+        const transformedData = response.data.data.map(item => ({
+          ...item,
+          date: format(parseISO(item.date), "MMM dd"),
+          totalSales: Number(item.totalSales),
+          totalOrders: Number(item.totalOrders),
+          totalDiscount: Number(item.totalDiscount),
+          totalProductsSold: Number(item.totalProductsSold),
+        }))
+        setSalesData(transformedData)
       } else {
-        toast.error("No sales data available for the selected range.");
+        toast.error("No sales data available for the selected range.")
+        setSalesData([])
       }
     } catch (error) {
-      console.error("Error fetching sales data:", error);
-      toast.error("Failed to fetch sales report.");
+      console.error("Error fetching sales data:", error)
+      toast.error("Failed to fetch sales report.")
+      setSalesData([])
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
-  
-  
-
-  const generateMockData = () => {
-    const data = []
-    let currentDate = startDate
-    while (currentDate <= endDate) {
-      data.push({
-        date: format(currentDate, "yyyy-MM-dd"),
-        sales: Math.floor(Math.random() * 10000),
-        orders: Math.floor(Math.random() * 100),
-        discount: Math.floor(Math.random() * 1000),
-        couponDiscount: Math.floor(Math.random() * 500),
-        totalSales: Math.floor(Math.random() * 10000),
-        totalOrders: Math.floor(Math.random() * 100),
-        totalDiscount: Math.floor(Math.random() * 1000),
-        totalProductsSold: Math.floor(Math.random() * 500),
-      })
-      currentDate = reportType === "daily" ? subDays(currentDate, -1) : subWeeks(currentDate, -1)
-    }
-    return data.reverse()
   }
+  
 
   const handleReportTypeChange = (value) => {
     setReportType(value)
+    setShowDatePickers(value === "custom")
+    
+    const today = new Date()
+    let newStartDate = today
+    
     switch (value) {
       case "daily":
-        setStartDate(subDays(new Date(), 7))
+        newStartDate = subDays(today, 7)
         break
       case "weekly":
-        setStartDate(subWeeks(new Date(), 4))
+        newStartDate = subWeeks(today, 4)
         break
       case "monthly":
-        setStartDate(subMonths(new Date(), 12))
+        newStartDate = subMonths(today, 12)
         break
       case "yearly":
-        setStartDate(subMonths(new Date(), 60))
+        newStartDate = new Date(today.getFullYear(), 0, 1)
         break
+      case "custom":
+        return
     }
-    setEndDate(new Date())
+    
+    setStartDate(newStartDate)
+    setEndDate(today)
   }
 
   const handleStartDateChange = (date) => {
+    if (date > endDate) {
+      toast.error("Start date cannot be after end date")
+      return
+    }
     setStartDate(date)
   }
 
   const handleEndDateChange = (date) => {
+    if (date < startDate) {
+      toast.error("End date cannot be before start date")
+      return
+    }
     setEndDate(date)
   }
 
-  const handleGenerateReport = () => {
-    fetchSalesData()
-  }
+  // const handleGenerateReport = () => {
+  //   fetchSalesData()
+  // }
 
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
@@ -233,14 +251,13 @@ const SalesReport = () => {
 
   const calculateTotals = () => {
     return salesData.reduce(
-      (acc, curr) => {
-        acc.totalSales += curr.totalSales
-        acc.totalOrders += curr.totalOrders
-        acc.totalDiscount += curr.totalDiscount
-        acc.totalProductsSold += curr.totalProductsSold
-        return acc
-      },
-      { totalSales: 0, totalOrders: 0, totalDiscount: 0, totalProductsSold: 0 },
+      (acc, curr) => ({
+        totalSales: acc.totalSales + curr.totalSales,
+        totalOrders: acc.totalOrders + curr.totalOrders,
+        totalDiscount: acc.totalDiscount + curr.totalDiscount,
+        totalProductsSold: acc.totalProductsSold + curr.totalProductsSold,
+      }),
+      { totalSales: 0, totalOrders: 0, totalDiscount: 0, totalProductsSold: 0 }
     )
   }
 
@@ -251,7 +268,7 @@ const SalesReport = () => {
       <h2 className="text-2xl font-bold mb-6">Sales Report</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Select onValueChange={handleReportTypeChange} defaultValue={reportType}>
+      <Select value={reportType} onValueChange={handleReportTypeChange}>
           <SelectTrigger>
             <SelectValue placeholder="Select report type" />
           </SelectTrigger>
@@ -260,35 +277,53 @@ const SalesReport = () => {
             <SelectItem value="weekly">Weekly</SelectItem>
             <SelectItem value="monthly">Monthly</SelectItem>
             <SelectItem value="yearly">Yearly</SelectItem>
-            {/* <SelectItem value="custom">Custom Date Range</SelectItem> */}
+            <SelectItem value="custom">Custom Date Range</SelectItem>
           </SelectContent>
         </Select>
 
-        {/* <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {format(startDate, "PPP")}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar mode="single" selected={startDate} onSelect={handleStartDateChange} initialFocus />
-          </PopoverContent>
-        </Popover> */}
+        {(showDatePickers || reportType === "custom") && (
+          <>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(startDate, "PPP")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={handleStartDateChange}
+                  initialFocus
+                  disabled={(date) => date > new Date() || date > endDate}
+                />
+              </PopoverContent>
+            </Popover>
 
-        {/* <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {format(endDate, "PPP")}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar mode="single" selected={endDate} onSelect={handleEndDateChange} initialFocus />
-          </PopoverContent>
-        </Popover> */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(endDate, "PPP")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={handleEndDateChange}
+                  initialFocus
+                  disabled={(date) => date > new Date() || date < startDate}
+                />
+              </PopoverContent>
+            </Popover>
 
-        {/* <Button onClick={handleGenerateReport}>Generate Report</Button> */}
+            <Button onClick={fetchSalesData} disabled={loading}>
+              {loading ? "Loading..." : "Generate Report"}
+            </Button>
+          </>
+        )}
       </div>
 
       <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

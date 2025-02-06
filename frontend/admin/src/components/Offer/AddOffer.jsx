@@ -88,10 +88,12 @@ export default function AddOffer() {
   }, []);
 
   const fetchProducts = async () => {
-    const ProductData = await axiosInstance.get('/showproducts');
+    const ProductData = await axiosInstance.get('/showproductsIsActive');
     setProducts(ProductData.data.products);
+    console.log("product data.....",ProductData)
   };
 
+  
   const fetchCategories = async () => {
     const categoryData = await axiosInstance.get('/getallcategoryIsactive');
     setCategories(categoryData.data.categories);

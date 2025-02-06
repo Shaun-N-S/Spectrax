@@ -34,11 +34,7 @@ const AdminSidebar = ({children}) => {
 
   const navigate = useNavigate();
 
-  // const handleLogout = () => {
-  //   console.log('Admin logout clicked');
-  //   localStorage.removeItem('adminId');
-  //   navigate('/admin/login', { replace: true });
-  // };
+  
 
 
   const dispatch = useDispatch();
@@ -118,9 +114,9 @@ const AdminSidebar = ({children}) => {
             <Button
               onClick={handleLogout}
               variant="outline"
-              className="w-full flex items-center justify-center space-x-2 py-3 text-red-500 border-red-500 hover:bg-red-500 hover:text-white transition-all duration-200"
+              className="w-full flex items-center justify-center space-x-2 py-3 text-red-500 border-red-500 hover:bg-red-500 hover:text-white transition-all duration-200 mt-2"
             >
-              <FaSignOutAlt className="w-5 h-5 mt-4" />
+              <FaSignOutAlt className="w-5 h-5 mt-1" />
               <span onClick={handleLogout}>LOGOUT</span>
             </Button>
           </div>
