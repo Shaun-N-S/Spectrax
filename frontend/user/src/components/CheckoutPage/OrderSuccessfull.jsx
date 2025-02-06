@@ -4,7 +4,7 @@ import { CheckCircle, Truck, ShoppingBag, ArrowRight, AlertCircle } from 'lucide
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import axiosInstance from '@/axios/userAxios'
-import { downloadInvoice } from './invoiceDownload';
+import { downloadInvoice } from './InvoiceDownload';
 
 export default function OrderSuccessful() {
   const { orderId } = useParams()
