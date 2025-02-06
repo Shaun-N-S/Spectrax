@@ -2,7 +2,7 @@ import axios from 'axios';
 import  toast  from 'react-hot-toast'; // Assuming you're using react-toastify
 
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:4000/user',
+  baseURL: import.meta.env.VITE_BASE_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
