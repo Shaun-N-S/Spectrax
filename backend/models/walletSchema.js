@@ -18,7 +18,7 @@ const walletSchema = new mongoose.Schema({
         },
         type: {
             type: String,
-            enum: ['credit', 'upi', 'refund', 'razorpay'],
+            enum: ['credit', 'upi', 'refund', 'razorpay','wallet'],
             required: true
         },
         amount: { 

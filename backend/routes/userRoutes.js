@@ -8,7 +8,7 @@ const { addAddress, fetchAddress , updateAddressStatus, updateAddress, fetchAddr
 const { AddCart, CartDetails, UpdateQuantity, RemoveItem } = require("../controller/cartController");
 const { getAllCategoriesIsactive } = require("../controller/categoryController");
 const { getallIsactiveBrands } = require("../controller/brandController");
-const { placeOrder, fetchOrders, orderById, orderStatusUpdate, verifyRazorpayPayment, createRazorpayOrder, refundOrders, returnOrderStatusUpdate } = require("../controller/orderController");
+const { placeOrder, fetchOrders, orderById, orderStatusUpdate, verifyRazorpayPayment, createRazorpayOrder, refundOrders, returnOrderStatusUpdate, placeWalletOrder } = require("../controller/orderController");
 const { validateCoupon } = require("../controller/CouponController");
 const { addToWishlist, getWishlist, removeFromWishlist } = require("../controller/wishlistController");
 const { getWallet } = require("../controller/walletController");
@@ -91,6 +91,7 @@ userRoutes.get('/wishlist/:userId', getWishlist);
 
 // ------------------Wallet Management Routes ------------------
 userRoutes.get('/Wallet/:userId',getWallet);
+userRoutes.post('/wallet-payment',placeWalletOrder);
 
 // ------------------Offer Management Routes ------------------
 userRoutes.get('/Offer/fetch/:id',fetchOfferById)

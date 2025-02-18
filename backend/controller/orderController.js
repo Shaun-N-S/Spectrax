@@ -221,6 +221,119 @@ const placeOrder = async (req, res) => {
 };
 
 
+
+const placeWalletOrder = async (req, res) => {
+    try {
+        const { userId, products, shippingAddress, couponCode, totalAmount, finalAmount } = req.body;
+
+        if (!userId || !products || !products.length || !shippingAddress) {
+            return res.status(400).json({ message: "All fields are required." });
+        }
+
+        // Fetch user wallet
+        const userWallet = await Wallet.findOne({ userId });
+        if (!userWallet || userWallet.balance < finalAmount) {
+            return res.status(400).json({ message: "Insufficient wallet balance." });
+        }
+
+        let appliedCoupon = null;
+        let discountAmount = 0;
+
+        if (couponCode) {
+            appliedCoupon = await Coupon.findOne({
+                name: couponCode,
+                isListed: "active",
+                expireOn: { $gt: new Date() }
+            });
+
+            if (appliedCoupon) {
+                discountAmount = appliedCoupon.CouponType === 'percentage'
+                    ? (totalAmount * appliedCoupon.offerPrice) / 100
+                    : appliedCoupon.offerPrice;
+                discountAmount = Math.min(discountAmount, totalAmount);
+            }
+        }
+
+        // Verify stock availability
+        for (const item of products) {
+            const product = await Product.findOne(
+                { _id: item.productId, 'variants._id': item.variantId, 'variants.availableQuantity': { $gte: item.quantity } },
+                { 'variants.$': 1 }
+            );
+
+            if (!product) {
+                return res.status(400).json({ message: `Insufficient stock for product ${item.name}` });
+            }
+        }
+
+        // Deduct amount from wallet
+        userWallet.balance -= finalAmount;
+        userWallet.transactions.push({
+            transaction_id: new mongoose.Types.ObjectId().toString(),
+            type: "wallet",
+            amount: finalAmount,
+            description: "Order payment using wallet",
+            status: "completed"
+        });
+        await userWallet.save();
+
+        // Create order
+        const orderData = {
+            userId,
+            products: products.map(item => ({
+                productId: item.productId,
+                variantId: item.variantId,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.variant.price,
+                variant: item.variant
+            })),
+            shippingAddress,
+            paymentMethod: "Wallet",
+            totalAmount,
+            coupon: appliedCoupon ? {
+                couponId: appliedCoupon._id,
+                code: appliedCoupon.name,
+                discountType: appliedCoupon.CouponType,
+                discountAmount: discountAmount
+            } : null,
+            discountAmount,
+            finalAmount: finalAmount || (totalAmount - discountAmount),
+            orderDate: new Date(),
+            orderStatus: "Processing",
+            paymentStatus: "Completed"
+        };
+
+        const newOrder = new Order(orderData);
+        await newOrder.save();
+
+        // Update stock and clear cart
+        const stockUpdatePromises = products.map(item =>
+            Product.findOneAndUpdate(
+                { _id: item.productId, 'variants._id': item.variantId },
+                { $inc: { 'variants.$.availableQuantity': -item.quantity } }
+            )
+        );
+        const clearCartPromise = Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
+
+        await Promise.all([...stockUpdatePromises, clearCartPromise]);
+
+        return res.status(201).json({
+            message: "Order placed successfully using wallet.",
+            orderId: newOrder
+        });
+
+    } catch (error) {
+        console.error("Error placing order with wallet payment:", error);
+        return res.status(500).json({ message: "Failed to place order", error: error.message });
+    }
+};
+
+
+
+
+
+
 const fetchOrders = async (req, res) => {
     try {
         const { id:userId } = req.params;
@@ -635,4 +748,5 @@ module.exports = {
     verifyRazorpayPayment,
     refundOrders,
     returnOrderStatusUpdate,
+    placeWalletOrder,
 }

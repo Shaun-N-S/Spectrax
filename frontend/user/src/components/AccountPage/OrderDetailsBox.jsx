@@ -131,6 +131,8 @@ const OrderDetailsBox = ({ order, open, onOpenChange, onStatusUpdate }) => {
       toast.error('Payment retry is only allowed for failed payments');
       return;
     }
+
+    
   
     try {
       const res = await loadRazorpay();

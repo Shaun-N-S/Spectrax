@@ -5,10 +5,10 @@ const addAddress = async (req, res) => {
   
     try {
       console.log(req.body)
-        const { userId, address, city, state, pinCode, country } = req.body;
+        const { userId, address, city, state, pinCode, country,phone } = req.body;
 
         
-        if (!userId || !address || !city || !state || !pinCode || !country) {
+        if (!userId || !address || !city || !state || !pinCode || !country || !phone) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
@@ -18,7 +18,7 @@ const addAddress = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        const existingAddress = await Address.findOne({ userId, address, city, state, pinCode, country });
+        const existingAddress = await Address.findOne({ userId, address, city, state, pinCode, country ,phone});
         if (existingAddress) {
             return res.status(409).json({ message: "Address already exists" });
         }
@@ -30,6 +30,7 @@ const addAddress = async (req, res) => {
             state,
             pinCode,
             country,
+            phone,
         });
 
         await newAddress.save();
@@ -105,7 +106,7 @@ const updateAddressStatus = async (req, res) => {
   const updateAddress = async (req, res) => {
     try {
       const { id } = req.params; // Get address ID from URL params
-      const { userId, address, city, state, pinCode, country } = req.body; // Destructure updated fields from request body
+      const { userId, address, city, state, pinCode, country,phone } = req.body; // Destructure updated fields from request body
   
       // Validate required fields
       if (!id || !userId) {
@@ -125,6 +126,7 @@ const updateAddressStatus = async (req, res) => {
       existingAddress.state = state || existingAddress.state;
       existingAddress.pinCode = pinCode || existingAddress.pinCode;
       existingAddress.country = country || existingAddress.country;
+      existingAddress.phone = phone || existingAddress.phone;
   
       // Save updated address
       await existingAddress.save();

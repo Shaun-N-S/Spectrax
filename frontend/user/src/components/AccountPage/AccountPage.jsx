@@ -34,6 +34,7 @@ export default function AccountPage() {
     state: '',
     pinCode: '',
     country: '',
+    phone: '',
   });
 
   const [addresses, setAddresses] = useState({ address: [] });
@@ -145,6 +146,9 @@ export default function AccountPage() {
     
     if (!addressForm.country?.trim()) {
       newErrors.country = 'Country is required';
+    }
+    if (!addressForm.phone?.trim()) {
+      newErrors.phone = 'Phone number is required';
     }
 
     setErrors(prev => ({ ...prev, address: newErrors }));
@@ -335,6 +339,7 @@ if (!walletData || !walletData.data.walletDetails) {
         state: '',
         pinCode: '',
         country: '',
+        phone: '',
       });
   
       setErrors(prev => ({ ...prev, address: {} }));
@@ -357,6 +362,7 @@ const handleCancelAddress = () => {
     state: '',
     pinCode: '',
     country: '',
+    phone: '',
   });
 };
   
@@ -369,6 +375,7 @@ const handleCancelAddress = () => {
       state: address.state,
       pinCode: address.pinCode,
       country: address.country,
+      phone:address.phone,
     });
     setShowAddressForm(true);
   };
@@ -404,6 +411,7 @@ const handleCancelAddress = () => {
         state: '',
         pinCode: '',
         country: '',
+        phone: '',
       });
 
       toast.success("Address updated successfully");
@@ -448,6 +456,7 @@ const handleDeleteAddress = async (addressId) => {
       state: '',
       pinCode: '',
       country: '',
+      phone: '',
     });
     setShowAddressForm(true);
   };
@@ -735,6 +744,7 @@ const totalPages = Math.ceil(orderDetails.length / ordersPerPage);
                             <p>{address.address}</p>
                             <p>{`${address.city}, ${address.state} ${address.pinCode}`}</p>
                             <p>{address.country}</p>
+                            <p>{address.phone}</p>
                           </div>
                           <div className="flex gap-2">
                             <Button 
@@ -838,6 +848,18 @@ const totalPages = Math.ceil(orderDetails.length / ordersPerPage);
                           />
                           {errors.address.country && (
                            <p className="text-red-500 text-sm mt-1">{errors.address.country}</p>
+                         )}
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Phone Number</Label>
+                          <Input 
+                            name="phone" 
+                            value={addressForm.phone} 
+                            onChange={handleAddressChange} 
+                            className={`bg-gray-600 ${errors.address.phone ? 'border-red-500' : ''}`}
+                          />
+                          {errors.address.phone && (
+                           <p className="text-red-500 text-sm mt-1">{errors.address.phone}</p>
                          )}
                         </div>
                       </div>

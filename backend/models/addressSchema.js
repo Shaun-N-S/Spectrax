@@ -31,6 +31,12 @@ const addressSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
+    phone:{
+        type: String,
+        required: true,
+        trim: true,
+
+    },
     status: {
         type: String,
         enum: ['active', 'Blocked'],

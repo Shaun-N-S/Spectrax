@@ -179,6 +179,7 @@ const CheckoutPage = () => {
       newErrors.pinCode = 'Please enter a valid 6-digit pin code';
     }
     if (!addressForm.country?.trim()) newErrors.country = 'Country is required';
+    if (!addressForm.phone?.trim()) newErrors.phone = 'Phone number is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -248,6 +249,7 @@ const CheckoutPage = () => {
       state: '',
       pinCode: '',
       country: '',
+      phone: '',
     });
     setErrors({});
   };
@@ -260,6 +262,7 @@ const CheckoutPage = () => {
       state: address.state,
       pinCode: address.pinCode,
       country: address.country,
+      phone: address.phone,
     });
     setShowAddressForm(true);
   };
@@ -336,6 +339,7 @@ const CheckoutPage = () => {
           pinCode: selectedAddressDetails.pinCode,
         },
         products: formattedProducts,
+
         paymentMethod: "Cash on Delivery",
         // Add couponCode if coupon is applied
         couponCode: appliedCoupon ? appliedCoupon.name : null,
@@ -363,6 +367,105 @@ const CheckoutPage = () => {
       toast.error(errorMessage);
     }
   };
+
+
+  
+
+  const handleWalletPayment = async () => {
+    if (!selectedAddress) {
+      toast.error("Please select a delivery address.");
+      return;
+    }
+  
+    if (!cartItems.length) {
+      toast.error("Your cart is empty");
+      return;
+    }
+  
+    // Check stock availability
+    const outOfStockItem = cartItems.find((item) => {
+      const availableStock = item.variant?.availableQuantity;
+      console.log(
+        `Checking item: ${item.name} | Quantity: ${item.quantity} | Available: ${availableStock}`
+      );
+      return item.quantity > availableStock;
+    });
+  
+    if (outOfStockItem) {
+      toast.error(
+        `Stock unavailable for "${outOfStockItem.name}". Available: ${outOfStockItem.variant?.availableQuantity}`
+      );
+      return;
+    }
+  
+    try {
+      const selectedAddressDetails = addresses.find(
+        (addr) => addr._id === selectedAddress
+      );
+  
+      if (!selectedAddressDetails) {
+        toast.error("Selected address not found");
+        return;
+      }
+  
+      const formattedProducts = cartItems.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        variant: {
+          name:
+            item.variant.name ||
+            `${item.name} - ${item.variant.attributes
+              .map((attr) => attr.value)
+              .join(" ")}`,
+          price: item.variant.price || item.price,
+          attributes: item.variant.attributes || [],
+        },
+      }));
+  
+      const paymentData = {
+        userId,
+        shippingAddress: {
+          address: selectedAddressDetails.address,
+          city: selectedAddressDetails.city,
+          state: selectedAddressDetails.state,
+          country: selectedAddressDetails.country,
+          pinCode: selectedAddressDetails.pinCode,
+        },
+        products: formattedProducts,
+        paymentMethod: "Wallet",
+        totalAmount: priceDetails.total,
+        finalAmount: calculateFinalPrice(),
+      };
+  
+      const response = await axiosInstance.post("/wallet-payment", paymentData);
+  
+      if (response.status === 201) {
+        toast.success("Payment successful!");
+        const orderId = response.data?.orderId;
+        console.log(orderId)
+        if (orderId) {
+          navigate(`/orderSuccessful/${orderId}`, {
+            state: { orderId },
+          });
+        } else {
+          console.error("Order ID not found in response.");
+          toast.error("Order ID not found. Please try again.");
+        }
+      } else {
+        toast.error("Wallet payment failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error processing wallet payment:", error);
+      const errorMessage =
+        error.response?.data?.message || "Payment failed. Try again.";
+      toast.error(errorMessage);
+    }
+  };
+  
+  
 
 
 
@@ -583,6 +686,7 @@ const CheckoutPage = () => {
                             <span className="font-semibold text-green-400">{address.address}</span>
                             <span className="text-sm text-gray-400">{address.city}, {address.state} {address.pinCode}</span>
                             <span className="text-sm text-gray-400">{address.country}</span>
+                            <span className="text-sm text-gray-400">{address.phone}</span>
                           </Label>
                         </div>
                         <div className="flex space-x-2">
@@ -668,6 +772,17 @@ const CheckoutPage = () => {
                             />
                             {errors.country && <p className="text-red-500 text-sm">{errors.country}</p>}
                           </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="phone" className="text-green-400">Country</Label>
+                            <Input
+                              id="phone"
+                              name="phone"
+                              value={addressForm.phone}
+                              onChange={handleAddressChange}
+                              className={`bg-gray-600 border-green-500 text-white ${errors.phone ? 'border-red-500' : ''}`}
+                            />
+                            {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
+                          </div>
                         </div>
 
                         <div className="flex justify-end space-x-2 mt-4">
@@ -720,13 +835,13 @@ const CheckoutPage = () => {
         Pay Online (RazorpayX)
       </Label>
     </div>
-    {/* <div className="flex items-center space-x-2 p-4 rounded-lg bg-gray-700 mt-2">
+    <div className="flex items-center space-x-2 p-4 rounded-lg bg-gray-700 mt-2">
       <RadioGroupItem value="Wallet" id="Wallet" className="border-green-500 text-green-500" />
       <Label htmlFor="Wallet Payment" className="text-green-400 flex items-center">
         <CreditCard className="mr-2 h-5 w-5" />
         Wallet Payment
       </Label>
-    </div> */}
+    </div>
   </RadioGroup>
 </CardContent>
             </Card>
@@ -839,12 +954,21 @@ const CheckoutPage = () => {
       </Card>
 
       <Button 
-  onClick={paymentMethod === 'razorpay' ? handleRazorpayPayment : handlePlaceOrder} 
+  onClick={() => {
+    if (paymentMethod === 'razorpay') {
+      handleRazorpayPayment();
+    } else if (paymentMethod === 'Wallet') {
+      handleWalletPayment();
+    } else {
+      handlePlaceOrder();
+    }
+  }} 
   className="w-full py-6 text-lg bg-green-500 text-black hover:bg-green-600 transition-colors"
 >
   <Truck className="mr-2 h-5 w-5" /> 
-  {paymentMethod === 'razorpay' ? 'Proceed to Pay' : 'Place Order'}
+  {paymentMethod === 'razorpay' ? 'Proceed to Pay' : paymentMethod === 'Wallet' ? 'Pay via Wallet' : 'Place Order'}
 </Button>
+
           </div>
         </div>
       </div>
